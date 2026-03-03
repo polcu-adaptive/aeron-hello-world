@@ -1,5 +1,6 @@
 package Task1.publisher;
 
+import Task1.AeronDriverMain;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.driver.MediaDriver;
@@ -20,12 +21,8 @@ public class PublisherAppMain
         final IdleStrategy idleStrategy = new SleepingIdleStrategy();
         final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocate(256));
 
-        final String channel = "aeron:ipc";
-        final int streamId = 10;
-
-        try (final MediaDriver driver = MediaDriver.launch();
-             final Aeron aeron = Aeron.connect();
-             final Publication publication = aeron.addPublication(channel, streamId))
+        try (final Aeron aeron = Aeron.connect();
+             final Publication publication = aeron.addPublication(AeronDriverMain.CHANNEL, AeronDriverMain.STREAM_ID))
         {
             while (!publication.isConnected())
             {

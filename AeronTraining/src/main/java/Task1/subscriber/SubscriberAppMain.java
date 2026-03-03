@@ -1,5 +1,6 @@
 package Task1.subscriber;
 
+import Task1.AeronDriverMain;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
@@ -14,12 +15,9 @@ public class SubscriberAppMain
 
         final IdleStrategy idleStrategy = new SleepingIdleStrategy();
 
-        final String channel = "aeron:ipc";
-        final int streamId = 10;
-
         try (
              final Aeron aeron = Aeron.connect();
-             final Subscription subscription = aeron.addSubscription(channel, streamId))
+             final Subscription subscription = aeron.addSubscription(AeronDriverMain.CHANNEL, AeronDriverMain.STREAM_ID))
         {
             final FragmentHandler handler = (buffer, offset, length, header) ->
                     System.out.println("Received message: " + buffer.getStringAscii(offset));
