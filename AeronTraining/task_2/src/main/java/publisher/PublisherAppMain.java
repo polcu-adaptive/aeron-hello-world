@@ -28,12 +28,15 @@ public class PublisherAppMain
                 idleStrategy.idle();
             }
 
-            unsafeBuffer.putStringUtf8(0, message);
-            System.out.println("Sending message: " + message);
+            unsafeBuffer.putStringUtf8(Long.BYTES, message);
 
-            while (publication.offer(unsafeBuffer) < 0)
+            for (int i = 0; i < Globals.MESSAGES_COUNT; ++i)
             {
-                idleStrategy.idle();
+                unsafeBuffer.putLong(0, System.nanoTime());
+                while (publication.offer(unsafeBuffer) < 0)
+                {
+                    idleStrategy.idle();
+                }
             }
 
             System.out.println("Reached end of publisher main method");
