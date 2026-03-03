@@ -1,6 +1,6 @@
-package Task1.subscriber;
+package task1.subscriber;
 
-import Task1.AeronDriverMain;
+import task1.AeronDriverMain;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;

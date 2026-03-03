@@ -1,9 +1,8 @@
-package Task1.publisher;
+package task1.publisher;
 
-import Task1.AeronDriverMain;
+import task1.AeronDriverMain;
 import io.aeron.Aeron;
 import io.aeron.Publication;
-import io.aeron.driver.MediaDriver;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.SleepingIdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
