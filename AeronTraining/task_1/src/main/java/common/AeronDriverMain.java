@@ -1,4 +1,4 @@
-package task1;
+package common;
 
 import io.aeron.driver.MediaDriver;
 import org.agrona.concurrent.ShutdownSignalBarrier;

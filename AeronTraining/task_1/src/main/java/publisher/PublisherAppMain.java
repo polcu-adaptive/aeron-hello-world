@@ -1,6 +1,6 @@
-package task1.publisher;
+package publisher;
 
-import task1.AeronDriverMain;
+import common.AeronDriverMain;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import org.agrona.concurrent.IdleStrategy;

@@ -1,11 +1,11 @@
-package task1.subscriber;
+package subscriber;
 
-import task1.AeronDriverMain;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.SleepingIdleStrategy;
+import common.AeronDriverMain;
 
 public class SubscriberAppMain
 {
