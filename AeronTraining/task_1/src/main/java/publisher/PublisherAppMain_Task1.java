@@ -1,6 +1,6 @@
 package publisher;
 
-import common.Globals;
+import common.Globals_Task1;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import org.agrona.concurrent.IdleStrategy;
@@ -9,7 +9,7 @@ import org.agrona.concurrent.UnsafeBuffer;
 
 import java.nio.ByteBuffer;
 
-public class PublisherAppMain
+public class PublisherAppMain_Task1
 {
     public static void main(final String[] args)
     {
@@ -21,7 +21,7 @@ public class PublisherAppMain
         final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocate(256));
 
         try (final Aeron aeron = Aeron.connect();
-             final Publication publication = aeron.addPublication(Globals.CHANNEL, Globals.STREAM_ID))
+             final Publication publication = aeron.addPublication(Globals_Task1.CHANNEL, Globals_Task1.STREAM_ID))
         {
             while (!publication.isConnected())
             {

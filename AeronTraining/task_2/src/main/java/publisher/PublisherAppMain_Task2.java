@@ -1,15 +1,15 @@
 package publisher;
 
-import common.Globals;
+import common.Globals_Task2;
 import io.aeron.Aeron;
 import io.aeron.Publication;
+import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.SleepingIdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
 
 import java.nio.ByteBuffer;
 
-public class PublisherAppMain
+public class PublisherAppMain_Task2
 {
     public static void main(final String[] args)
     {
@@ -17,11 +17,11 @@ public class PublisherAppMain
 
         final String message = "Hello World";
 
-        final IdleStrategy idleStrategy = new SleepingIdleStrategy();
+        final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
         final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocate(256));
 
         try (final Aeron aeron = Aeron.connect();
-             final Publication publication = aeron.addPublication(Globals.CHANNEL, Globals.STREAM_ID))
+             final Publication publication = aeron.addPublication(Globals_Task2.CHANNEL, Globals_Task2.STREAM_ID))
         {
             while (!publication.isConnected())
             {
@@ -29,14 +29,17 @@ public class PublisherAppMain
             }
 
             unsafeBuffer.putStringUtf8(Long.BYTES, message);
+            System.out.println("Sending message: " + message);
 
-            for (int i = 0; i < Globals.MESSAGES_COUNT; ++i)
+            for (int i = 0; i < Globals_Task2.MESSAGES_COUNT; ++i)
             {
                 unsafeBuffer.putLong(0, System.nanoTime());
                 while (publication.offer(unsafeBuffer) < 0)
                 {
+                    //System.out.println("Failed to send message. Retrying...");
                     idleStrategy.idle();
                 }
+                //System.out.println("Sent message " + i);
             }
 
             System.out.println("Reached end of publisher main method");
