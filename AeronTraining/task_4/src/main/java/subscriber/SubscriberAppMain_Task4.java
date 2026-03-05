@@ -1,6 +1,5 @@
 package subscriber;
 
-import common.Globals_Task4;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
@@ -9,7 +8,7 @@ import org.agrona.concurrent.IdleStrategy;
 import task3.src.main.resources.AeronMessageDecoder;
 import task3.src.main.resources.MessageHeaderDecoder;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import static common.Globals_Task4.*;
 
 public class SubscriberAppMain_Task4
 {
@@ -24,10 +23,10 @@ public class SubscriberAppMain_Task4
         final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
         final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
 
-        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task4.AERON_DIR_PATH);
+        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(AERON_DIR_PATH);
         try (
              final Aeron aeron = Aeron.connect(context);
-             final Subscription subscription = aeron.addSubscription(Globals_Task4.CHANNEL, Globals_Task4.STREAM_ID))
+             final Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
         {
             final FragmentHandler handler = (buffer, offset, length, header) ->
             {
@@ -47,7 +46,7 @@ public class SubscriberAppMain_Task4
                 totalLatency += latency;
             };
 
-            for (int i = 0; i < Globals_Task4.MESSAGES_COUNT; ++i)
+            for (int i = 0; i < MESSAGES_COUNT; ++i)
             {
                 while (subscription.poll(handler, 1) <= 0)
                 {
@@ -55,7 +54,9 @@ public class SubscriberAppMain_Task4
                 }
             }
 
-            System.out.println("Average latency for " + Globals_Task4.MESSAGES_COUNT + " messages: " + totalLatency / Globals_Task4.MESSAGES_COUNT);
+            final long averageLatencyNs = totalLatency / MESSAGES_COUNT;
+            final double averageLatencyMs = averageLatencyNs / 1_000_000.0;
+            System.out.println("Average latency for " + MESSAGES_COUNT + " messages: " + averageLatencyNs + " ns | " + averageLatencyMs + " ms");
             System.out.println("Reached end of subscriber main method");
         }
     }

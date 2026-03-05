@@ -53,7 +53,9 @@ public class SubscriberAppMain_Task3
                 }
             }
 
-            System.out.println("Average latency for " + Globals_Task3.MESSAGES_COUNT + " messages: " + totalLatency / Globals_Task3.MESSAGES_COUNT);
+            final long averageLatencyNs = totalLatency / Globals_Task3.MESSAGES_COUNT;
+            final double averageLatencyMs = averageLatencyNs / 1_000_000.0;
+            System.out.println("Average latency for " + Globals_Task3.MESSAGES_COUNT + " messages: " + averageLatencyNs + " ns | " + averageLatencyMs + " ms");
             System.out.println("Reached end of subscriber main method");
         }
     }
