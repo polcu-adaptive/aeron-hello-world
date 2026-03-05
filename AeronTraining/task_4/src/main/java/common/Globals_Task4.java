@@ -1,6 +1,6 @@
 package common;
 
-public class Globals_Task2
+public class Globals_Task4
 {
     public static String CHANNEL = "aeron:udp?endpoint=localhost:40123";
     public static int STREAM_ID = 10;

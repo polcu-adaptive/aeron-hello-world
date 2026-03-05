@@ -15,8 +15,9 @@ public class SubscriberAppMain_Task1
 
         final IdleStrategy idleStrategy = new SleepingIdleStrategy();
 
+        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task1.AERON_DIR_PATH);
         try (
-             final Aeron aeron = Aeron.connect();
+             final Aeron aeron = Aeron.connect(context);
              final Subscription subscription = aeron.addSubscription(Globals_Task1.CHANNEL, Globals_Task1.STREAM_ID))
         {
             final FragmentHandler handler = (buffer, offset, length, header) ->

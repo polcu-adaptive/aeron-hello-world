@@ -20,7 +20,8 @@ public class PublisherAppMain_Task2
         final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
         final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocate(256));
 
-        try (final Aeron aeron = Aeron.connect();
+        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task2.AERON_DIR_PATH);
+        try (final Aeron aeron = Aeron.connect(context);
              final Publication publication = aeron.addPublication(Globals_Task2.CHANNEL, Globals_Task2.STREAM_ID))
         {
             while (!publication.isConnected())
@@ -36,10 +37,8 @@ public class PublisherAppMain_Task2
                 unsafeBuffer.putLong(0, System.nanoTime());
                 while (publication.offer(unsafeBuffer) < 0)
                 {
-                    //System.out.println("Failed to send message. Retrying...");
-                    idleStrategy.idle();
+                    //idleStrategy.idle();
                 }
-                //System.out.println("Sent message " + i);
             }
 
             System.out.println("Reached end of publisher main method");

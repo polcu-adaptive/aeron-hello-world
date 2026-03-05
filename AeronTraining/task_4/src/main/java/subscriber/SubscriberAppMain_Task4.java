@@ -1,6 +1,6 @@
 package subscriber;
 
-import common.Globals_Task3;
+import common.Globals_Task4;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
@@ -9,7 +9,9 @@ import org.agrona.concurrent.IdleStrategy;
 import task3.src.main.resources.AeronMessageDecoder;
 import task3.src.main.resources.MessageHeaderDecoder;
 
-public class SubscriberAppMain_Task3
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public class SubscriberAppMain_Task4
 {
     static long totalLatency = 0;
 
@@ -22,10 +24,10 @@ public class SubscriberAppMain_Task3
         final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
         final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
 
-        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task3.AERON_DIR_PATH);
+        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task4.AERON_DIR_PATH);
         try (
              final Aeron aeron = Aeron.connect(context);
-             final Subscription subscription = aeron.addSubscription(Globals_Task3.CHANNEL, Globals_Task3.STREAM_ID))
+             final Subscription subscription = aeron.addSubscription(Globals_Task4.CHANNEL, Globals_Task4.STREAM_ID))
         {
             final FragmentHandler handler = (buffer, offset, length, header) ->
             {
@@ -45,7 +47,7 @@ public class SubscriberAppMain_Task3
                 totalLatency += latency;
             };
 
-            for (int i = 0; i < Globals_Task3.MESSAGES_COUNT; ++i)
+            for (int i = 0; i < Globals_Task4.MESSAGES_COUNT; ++i)
             {
                 while (subscription.poll(handler, 1) <= 0)
                 {
@@ -53,7 +55,7 @@ public class SubscriberAppMain_Task3
                 }
             }
 
-            System.out.println("Average latency for " + Globals_Task3.MESSAGES_COUNT + " messages: " + totalLatency / Globals_Task3.MESSAGES_COUNT);
+            System.out.println("Average latency for " + Globals_Task4.MESSAGES_COUNT + " messages: " + totalLatency / Globals_Task4.MESSAGES_COUNT);
             System.out.println("Reached end of subscriber main method");
         }
     }

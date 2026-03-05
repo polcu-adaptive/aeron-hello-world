@@ -20,7 +20,8 @@ public class PublisherAppMain_Task1
         final IdleStrategy idleStrategy = new SleepingIdleStrategy();
         final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocate(256));
 
-        try (final Aeron aeron = Aeron.connect();
+        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task1.AERON_DIR_PATH);
+        try (final Aeron aeron = Aeron.connect(context);
              final Publication publication = aeron.addPublication(Globals_Task1.CHANNEL, Globals_Task1.STREAM_ID))
         {
             while (!publication.isConnected())

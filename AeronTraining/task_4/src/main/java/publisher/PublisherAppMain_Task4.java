@@ -1,6 +1,6 @@
 package publisher;
 
-import common.Globals_Task3;
+import common.Globals_Task4;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import org.agrona.concurrent.BusySpinIdleStrategy;
@@ -11,7 +11,7 @@ import task3.src.main.resources.MessageHeaderEncoder;
 
 import java.nio.ByteBuffer;
 
-public class PublisherAppMain_Task3
+public class PublisherAppMain_Task4
 {
     public static void main(final String[] args)
     {
@@ -25,9 +25,9 @@ public class PublisherAppMain_Task3
         final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
         final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
 
-        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task3.AERON_DIR_PATH);
+        final Aeron.Context context = new Aeron.Context().aeronDirectoryName(Globals_Task4.AERON_DIR_PATH);
         try (final Aeron aeron = Aeron.connect(context);
-             final Publication publication = aeron.addPublication(Globals_Task3.CHANNEL, Globals_Task3.STREAM_ID))
+             final Publication publication = aeron.addPublication(Globals_Task4.CHANNEL, Globals_Task4.STREAM_ID))
         {
             while (!publication.isConnected())
             {
@@ -41,7 +41,7 @@ public class PublisherAppMain_Task3
 
             System.out.println("Sending message: " + message);
 
-            for (int i = 0; i < Globals_Task3.MESSAGES_COUNT; ++i)
+            for (int i = 0; i < Globals_Task4.MESSAGES_COUNT; ++i)
             {
                 messageEncoder.timestamp(System.nanoTime());
                 while (publication.offer(unsafeBuffer, 0, length) < 0)
