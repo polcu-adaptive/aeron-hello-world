@@ -1,10 +1,7 @@
-package publisher;
+package agents;
 
-import common.AgentState;
 import io.aeron.Aeron;
-import io.aeron.CommonContext;
 import io.aeron.Publication;
-import io.aeron.driver.MediaDriver;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -17,9 +14,7 @@ import static common.Globals_Task4.*;
 
 public class PublishingAgent implements Agent
 {
-    private static final int BUFFER_SIZE = MessageHeaderEncoder.ENCODED_LENGTH + AeronMessageEncoder.BLOCK_LENGTH;
-    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(BUFFER_SIZE));
-    private MediaDriver mediaDriver;
+    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
     private Aeron aeron;
     private Publication publication;
 
@@ -28,12 +23,13 @@ public class PublishingAgent implements Agent
     private AgentState agentState = AgentState.INITIAL;
     private String message = "";
 
+    private int messageCounter = 0;
+
     @Override
     public void onStart()
     {
         agentState = AgentState.STARTING;
-        mediaDriver = launchMediaDriver();
-        aeron = connectAeron(mediaDriver);
+        aeron = connectAeron();
         agentState = AgentState.CONNECTING;
     }
 
@@ -72,7 +68,6 @@ public class PublishingAgent implements Agent
     public void setMessage(final String message)
     {
         this.message = message;
-        messageEncoder.message(message);
     }
 
     private void offerMessage()
@@ -84,12 +79,15 @@ public class PublishingAgent implements Agent
         }
 
         messageEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
+        messageEncoder.message(message);
         messageEncoder.timestamp(System.nanoTime());
 
-        final long offer = publication.offer(buffer, 0, BUFFER_SIZE);
+        final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
+        final long offer = publication.offer(buffer, 0, length);
         if (offer >= 0)
         {
             System.out.println("Publishing - Sent: " + message);
+            ++messageCounter;
         }
         else
         {
@@ -97,10 +95,15 @@ public class PublishingAgent implements Agent
         }
     }
 
+    public int getMessageCounter()
+    {
+        return messageCounter;
+    }
+
     @Override
     public void onClose()
     {
-        CloseHelper.closeAll(mediaDriver, aeron);
+        CloseHelper.close(aeron);
         agentState = AgentState.CLOSED;
     }
 
@@ -110,15 +113,9 @@ public class PublishingAgent implements Agent
         return "publishing-agent";
     }
 
-    private MediaDriver launchMediaDriver()
+    private Aeron connectAeron()
     {
-        final MediaDriver.Context mediaDriverContext = new MediaDriver.Context().aeronDirectoryName(AERON_DIR_PATH).dirDeleteOnStart(true);
-        return MediaDriver.launchEmbedded(mediaDriverContext);
-    }
-
-    private Aeron connectAeron(final MediaDriver mediaDriver)
-    {
-        final Aeron.Context aeronContext = new Aeron.Context().aeronDirectoryName(mediaDriver.context().aeronDirectoryName());
+        final Aeron.Context aeronContext = new Aeron.Context().aeronDirectoryName(AERON_DIR_PATH);
         return Aeron.connect(aeronContext);
     }
 }

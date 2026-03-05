@@ -1,4 +1,4 @@
-package common;
+package agents;
 
 public enum AgentState
 {
