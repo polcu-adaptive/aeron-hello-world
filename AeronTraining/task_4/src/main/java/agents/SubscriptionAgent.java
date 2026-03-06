@@ -21,6 +21,7 @@ public class SubscriptionAgent implements Agent
     private AgentState agentState = AgentState.INITIAL;
 
     private int messageCounter = 0;
+    private long totalLatency = 0;
 
     @Override
     public void onStart()
@@ -53,11 +54,21 @@ public class SubscriptionAgent implements Agent
                 if (subscription.isConnected())
                 {
                     workCount = pollSubscription();
+                    if (messageCounter >= MESSAGES_COUNT)
+                    {
+                        final long averageLatencyNs = totalLatency / MESSAGES_COUNT;
+                        final double averageLatencyMs = averageLatencyNs / 1_000_000.0;
+                        System.out.println("Average latency: " + averageLatencyNs + "ns | " + averageLatencyMs + "ms");
+                        agentState = AgentState.STOPPED;
+                    }
                 }
                 else
                 {
                     onClose();
                 }
+            }
+            case STOPPED ->
+            {
             }
         }
         return workCount;
@@ -89,13 +100,9 @@ public class SubscriptionAgent implements Agent
             // Compute latency
             final long latencyNs = System.nanoTime() - timestamp;
             final double latencyMs = latencyNs / 1_000_000.0;
-            System.out.println("Message received: " + message + " | Latency: " + latencyNs + "ns - " + latencyMs + "ms");
+            totalLatency += latencyNs;
+            //System.out.println("Message received: " + message + " | Latency: " + latencyNs + "ns - " + latencyMs + "ms");
         };
-    }
-
-    public int getMessageCounter()
-    {
-        return messageCounter;
     }
 
     @Override

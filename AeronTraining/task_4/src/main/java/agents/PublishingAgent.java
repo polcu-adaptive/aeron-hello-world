@@ -55,11 +55,18 @@ public class PublishingAgent implements Agent
                 if (publication.isConnected())
                 {
                     offerMessage();
+                    if (messageCounter >= MESSAGES_COUNT)
+                    {
+                        agentState = AgentState.STOPPED;
+                    }
                 }
                 else
                 {
                     onClose();
                 }
+            }
+            case STOPPED ->
+            {
             }
         }
         return workCount;
@@ -86,18 +93,13 @@ public class PublishingAgent implements Agent
         final long offer = publication.offer(buffer, 0, length);
         if (offer >= 0)
         {
-            System.out.println("Publishing - Sent: " + message);
+            //System.out.println("Publishing - Sent: " + message);
             ++messageCounter;
         }
         else
         {
             System.err.println("Publishing - Failed | Response Code: " + offer);
         }
-    }
-
-    public int getMessageCounter()
-    {
-        return messageCounter;
     }
 
     @Override

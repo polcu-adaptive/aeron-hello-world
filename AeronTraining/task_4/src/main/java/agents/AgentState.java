@@ -6,5 +6,6 @@ public enum AgentState
     STARTING,
     CONNECTING,
     STEADY,
+    STOPPED,
     CLOSED
 }
