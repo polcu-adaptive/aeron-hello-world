@@ -1,4 +1,4 @@
-package agents;
+package agent;
 
 import io.aeron.Aeron;
 import io.aeron.Publication;
@@ -10,7 +10,7 @@ import task3.src.main.resources.MessageHeaderEncoder;
 
 import java.nio.ByteBuffer;
 
-import static common.Globals_Task4.*;
+import static common.Globals.*;
 
 public class PublishingAgent implements Agent
 {
@@ -98,7 +98,7 @@ public class PublishingAgent implements Agent
         }
         else
         {
-            System.err.println("Publishing - Failed in nº: " + messageCounter + " | Response Code: " + offer);
+            System.err.println("Publishing - Failed | Response Code: " + offer);
         }
     }
 

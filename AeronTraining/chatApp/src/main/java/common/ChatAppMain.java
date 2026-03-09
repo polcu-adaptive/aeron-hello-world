@@ -1,15 +1,28 @@
 package common;
 
-import agents.AgentErrorHandler;
-import agents.PublishingAgent;
-import agents.SubscriptionAgent;
-import org.agrona.concurrent.*;
+import agent.AgentErrorHandler;
+import agent.PublishingAgent;
+import agent.SubscriptionAgent;
+import org.agrona.concurrent.AgentRunner;
+import org.agrona.concurrent.BackoffIdleStrategy;
+import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
+import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 
-public class AppMain_Task4
+import java.nio.ByteBuffer;
+
+public class ChatAppMain
 {
     public static void main(final String[] args)
     {
         final IdleStrategy idleStrategy = new BackoffIdleStrategy();
+
+        final int bufferLength = 4096 + RingBufferDescriptor.TRAILER_LENGTH;
+        final UnsafeBuffer internalBuffer
+                = new UnsafeBuffer(ByteBuffer.allocateDirect(bufferLength));
+        final OneToOneRingBuffer ringBuffer
+                = new OneToOneRingBuffer(internalBuffer);
 
         System.out.println("Setup PublishingAgent");
         final PublishingAgent publishingAgent = new PublishingAgent();
