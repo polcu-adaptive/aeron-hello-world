@@ -23,7 +23,8 @@
     </types>
 
     <sbe:message name="AeronMessage" id="1">
-        <field name="timestamp" id="1" type="Timestamp"/>
-        <data  name="message"   id="2" type="varStringEncoding"/>
+        <field name="sendTimestamp" id="1" type="Timestamp"/>
+        <field name="inputTimestamp" id="2" type="Timestamp"/>
+        <data  name="message"   id="3" type="varStringEncoding"/>
     </sbe:message>
 </sbe:messageSchema>

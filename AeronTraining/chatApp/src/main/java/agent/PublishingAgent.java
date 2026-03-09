@@ -3,8 +3,10 @@ package agent;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import org.agrona.CloseHelper;
+import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import task3.src.main.resources.AeronMessageEncoder;
 import task3.src.main.resources.MessageHeaderEncoder;
 
@@ -18,12 +20,16 @@ public class PublishingAgent implements Agent
     private Aeron aeron;
     private Publication publication;
 
-    private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
+    private final int headerLength = new MessageHeaderEncoder().encodedLength();
     private final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
     private AgentState agentState = AgentState.INITIAL;
-    private String message = "";
 
-    private int messageCounter = 0;
+    private final OneToOneRingBuffer ringBuffer;
+
+    public PublishingAgent(final OneToOneRingBuffer ringBuffer)
+    {
+        this.ringBuffer = ringBuffer;
+    }
 
     @Override
     public void onStart()
@@ -54,11 +60,7 @@ public class PublishingAgent implements Agent
             {
                 if (publication.isConnected())
                 {
-                    offerMessage();
-                    if (messageCounter >= MESSAGES_COUNT)
-                    {
-                        agentState = AgentState.STOPPED;
-                    }
+                    workCount += ringBuffer.read(this::readAndOfferMessage);
                 }
                 else
                 {
@@ -72,33 +74,14 @@ public class PublishingAgent implements Agent
         return workCount;
     }
 
-    public void setMessage(final String message)
+    private void readAndOfferMessage(final int msgTypeId, final MutableDirectBuffer buffer, final int index, final int length)
     {
-        this.message = message;
-    }
-
-    private void offerMessage()
-    {
-        if (message == null || message.isEmpty())
+        messageEncoder.wrap(buffer, index + headerLength);
+        messageEncoder.sendTimestamp(System.nanoTime());
+        final long offer = publication.offer(buffer, index, length);
+        if (offer < 0)
         {
-            System.err.println("Publishing Agent can't offer an empty message");
-            return;
-        }
-
-        messageEncoder.wrapAndApplyHeader(buffer, 0, headerEncoder);
-        messageEncoder.message(message);
-        messageEncoder.timestamp(System.nanoTime());
-
-        final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
-        final long offer = publication.offer(buffer, 0, length);
-        if (offer >= 0)
-        {
-            //System.out.println("Publishing - Sent: " + message);
-            ++messageCounter;
-        }
-        else
-        {
-            System.err.println("Publishing - Failed | Response Code: " + offer);
+            System.err.println("Publishing failed | Response Code: " + offer);
         }
     }
 

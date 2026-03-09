@@ -20,9 +20,6 @@ public class SubscriptionAgent implements Agent
     private FragmentHandler fragmentHandler = null;
     private AgentState agentState = AgentState.INITIAL;
 
-    private int messageCounter = 0;
-    private long totalLatency = 0;
-
     @Override
     public void onStart()
     {
@@ -54,13 +51,6 @@ public class SubscriptionAgent implements Agent
                 if (subscription.isConnected())
                 {
                     workCount = pollSubscription();
-                    if (messageCounter >= MESSAGES_COUNT)
-                    {
-                        final long averageLatencyNs = totalLatency / MESSAGES_COUNT;
-                        final double averageLatencyMs = averageLatencyNs / 1_000_000.0;
-                        System.out.println("Average latency: " + averageLatencyNs + "ns | " + averageLatencyMs + "ms");
-                        agentState = AgentState.STOPPED;
-                    }
                 }
                 else
                 {
@@ -76,9 +66,7 @@ public class SubscriptionAgent implements Agent
 
     private int pollSubscription()
     {
-        final int fragments = subscription.poll(fragmentHandler, 10);
-        messageCounter += fragments;
-        return fragments;
+        return subscription.poll(fragmentHandler, 10);
     }
 
     private void setupFragmentHandler()
@@ -95,13 +83,14 @@ public class SubscriptionAgent implements Agent
             messageDecoder.wrap(buffer, offset, actingBlockLength, actingVersion);
 
             final String message = messageDecoder.message();
-            final long timestamp = messageDecoder.timestamp();
+            final long sendTimestamp = messageDecoder.sendTimestamp();
+            final long inputTimestamp = messageDecoder.inputTimestamp();
 
             // Compute latency
-            final long latencyNs = System.nanoTime() - timestamp;
-            final double latencyMs = latencyNs / 1_000_000.0;
-            totalLatency += latencyNs;
-            //System.out.println("Message received: " + message + " | Latency: " + latencyNs + "ns - " + latencyMs + "ms");
+            final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
+            final double sendLatencyMs = (System.nanoTime() - sendTimestamp) / 1_000_000.0;
+
+            System.out.println("|Subscription Agent| Message received: " + message + " - Input latency: " + inputLatencyMs + " ms - Net latency: " + sendLatencyMs + " ms");
         };
     }
 
