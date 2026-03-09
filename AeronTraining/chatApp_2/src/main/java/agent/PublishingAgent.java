@@ -25,10 +25,12 @@ public class PublishingAgent implements Agent
     private AgentState agentState = AgentState.INITIAL;
 
     private final OneToOneRingBuffer ringBuffer;
+    private final String channel;
 
-    public PublishingAgent(final OneToOneRingBuffer ringBuffer)
+    public PublishingAgent(final OneToOneRingBuffer ringBuffer, final String channel)
     {
         this.ringBuffer = ringBuffer;
+        this.channel = channel;
     }
 
     @Override
@@ -49,7 +51,7 @@ public class PublishingAgent implements Agent
             {
                 if (publication == null)
                 {
-                    publication = aeron.addPublication(CHANNEL, STREAM_ID);
+                    publication = aeron.addPublication(channel, STREAM_ID);
                 }
                 else if (publication.isConnected())
                 {
@@ -84,7 +86,6 @@ public class PublishingAgent implements Agent
             System.err.println("Publishing failed | Response Code: " + offer);
         }
     }
-
     @Override
     public void onClose()
     {

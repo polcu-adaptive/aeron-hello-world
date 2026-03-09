@@ -13,10 +13,13 @@ import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 
 import java.nio.ByteBuffer;
 
-public class ChatAppMain
+public class ChatClient
 {
     public static void main(final String[] args)
     {
+        final String myChannel = args[0];
+        final String otherChannel = args[1];
+
         final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
         final int bufferLength = 4096 + RingBufferDescriptor.TRAILER_LENGTH;
@@ -25,16 +28,16 @@ public class ChatAppMain
         final OneToOneRingBuffer ringBuffer
                 = new OneToOneRingBuffer(internalBuffer);
 
-        System.out.println("Setup agent.CliAgent");
+        System.out.println("Setup CliAgent");
         final CliAgent cliAgent = new CliAgent(ringBuffer);
         final AgentRunner cliAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, cliAgent);
 
-        System.out.println("Setup agent.PublishingAgent");
-        final PublishingAgent publishingAgent = new PublishingAgent(ringBuffer);
+        System.out.println("Setup PublishingAgent");
+        final PublishingAgent publishingAgent = new PublishingAgent(ringBuffer, otherChannel);
         final AgentRunner publishingAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, publishingAgent);
 
-        System.out.println("Setup agent.SubscriptionAgent");
-        final SubscriptionAgent subscriptionAgent = new SubscriptionAgent();
+        System.out.println("Setup SubscriptionAgent");
+        final SubscriptionAgent subscriptionAgent = new SubscriptionAgent(myChannel);
         final AgentRunner subscriptionAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, subscriptionAgent);
 
         System.out.println("Start agent runners");

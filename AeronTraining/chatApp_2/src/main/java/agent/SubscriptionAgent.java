@@ -20,6 +20,13 @@ public class SubscriptionAgent implements Agent
     private FragmentHandler fragmentHandler = null;
     private AgentState agentState = AgentState.INITIAL;
 
+    private final String channel;
+
+    public SubscriptionAgent(final String channel)
+    {
+        this.channel = channel;
+    }
+
     @Override
     public void onStart()
     {
@@ -38,7 +45,7 @@ public class SubscriptionAgent implements Agent
             {
                 if (subscription == null)
                 {
-                    subscription = aeron.addSubscription(CHANNEL, STREAM_ID);
+                    subscription = aeron.addSubscription(channel, STREAM_ID);
                     setupFragmentHandler();
                 }
                 else if (subscription.isConnected())
