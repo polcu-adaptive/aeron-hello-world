@@ -11,7 +11,6 @@ import java.util.Scanner;
 
 public class CliAgent implements Agent
 {
-    private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private final OneToOneRingBuffer ringBuffer;
     private final Scanner scanner;
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
@@ -48,7 +47,7 @@ public class CliAgent implements Agent
     {
         messageEncoder.wrapAndApplyHeader(ringBuffer.buffer(), 0, headerEncoder);
         messageEncoder.message(message);
-        messageEncoder.netTimestamp(0);;
+        messageEncoder.netTimestamp(0);
         messageEncoder.serverTimestamp(0);
         messageEncoder.inputTimestamp(0);
 
