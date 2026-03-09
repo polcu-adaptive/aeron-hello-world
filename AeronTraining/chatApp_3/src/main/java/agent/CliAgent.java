@@ -41,7 +41,6 @@ public class CliAgent implements Agent
             }
         }
 
-
         return workCount;
     }
 
@@ -49,8 +48,9 @@ public class CliAgent implements Agent
     {
         messageEncoder.wrapAndApplyHeader(ringBuffer.buffer(), 0, headerEncoder);
         messageEncoder.message(message);
-        messageEncoder.sendTimestamp(System.nanoTime());
-        messageEncoder.inputTimestamp(System.nanoTime());
+        messageEncoder.netTimestamp(0);;
+        messageEncoder.serverTimestamp(0);
+        messageEncoder.inputTimestamp(0);
 
         final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
         final int claimIndex = ringBuffer.tryClaim(1, length);

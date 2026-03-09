@@ -2,34 +2,30 @@ package agent;
 
 import io.aeron.Aeron;
 import io.aeron.Publication;
+import io.aeron.Subscription;
+import io.aeron.logbuffer.Header;
 import org.agrona.CloseHelper;
-import org.agrona.MutableDirectBuffer;
+import org.agrona.DirectBuffer;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
-import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import task3.src.main.resources.AeronMessageEncoder;
 import task3.src.main.resources.MessageHeaderEncoder;
 
 import java.nio.ByteBuffer;
+import java.time.chrono.MinguoDate;
 
 import static common.Globals.*;
 
-public class PublishingAgent implements Agent
+public class ServerAgent implements Agent
 {
-    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
     private Aeron aeron;
+    private Subscription subscription;
     private Publication publication;
+    private final UnsafeBuffer outBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
 
     private static final int HEADER_LENGTH = new MessageHeaderEncoder().encodedLength();
     private final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
     private AgentState agentState = AgentState.INITIAL;
-
-    private final OneToOneRingBuffer ringBuffer;
-
-    public PublishingAgent(final OneToOneRingBuffer ringBuffer)
-    {
-        this.ringBuffer = ringBuffer;
-    }
 
     @Override
     public void onStart()
@@ -49,18 +45,24 @@ public class PublishingAgent implements Agent
             {
                 if (publication == null)
                 {
-                    publication = aeron.addPublication(CHAT_INBOUND_CHANNEL, STREAM_ID);
+                    publication = aeron.addPublication(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
                 }
-                else if (publication.isConnected())
+
+                if (subscription == null)
+                {
+                    subscription = aeron.addSubscription(CHAT_INBOUND_CHANNEL, STREAM_ID);
+                }
+
+                if (publication.isConnected() && subscription.isConnected())
                 {
                     agentState = AgentState.STEADY;
                 }
             }
             case STEADY ->
             {
-                if (publication.isConnected())
+                if (subscription.isConnected())
                 {
-                    workCount += ringBuffer.read(this::readAndOfferMessage);
+                    workCount += subscription.poll(this::readAndBroadcastMessage, 10);
                 }
                 else
                 {
@@ -74,16 +76,21 @@ public class PublishingAgent implements Agent
         return workCount;
     }
 
-    private void readAndOfferMessage(final int msgTypeId, final MutableDirectBuffer buffer, final int index, final int length)
+    private void readAndBroadcastMessage(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
-        messageEncoder.wrap(buffer, index + HEADER_LENGTH);
-        messageEncoder.netTimestamp(System.nanoTime());
-        final long offer = publication.offer(buffer, index, length);
-        if (offer < 0)
+        System.out.println("|Server Agent| Received message");
+
+        outBuffer.putBytes(0, buffer, offset, length);
+        messageEncoder.wrap(outBuffer, HEADER_LENGTH);
+        messageEncoder.serverTimestamp(System.nanoTime());
+
+        final long offerResult = publication.offer(outBuffer, 0, length);
+        if (offerResult < 0)
         {
-            System.err.println("Client publishing failed | Response Code: " + offer);
+            System.err.println("Server publishing failed | Response Code: " + offerResult);
         }
     }
+
     @Override
     public void onClose()
     {
@@ -94,7 +101,7 @@ public class PublishingAgent implements Agent
     @Override
     public String roleName()
     {
-        return "publishing-agent";
+        return "server-agent";
     }
 
     private Aeron connectAeron()

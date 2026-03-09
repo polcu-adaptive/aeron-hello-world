@@ -13,8 +13,6 @@ import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 
 import java.nio.ByteBuffer;
 
-import static common.Globals.CHANNEL;
-
 public class ChatClient
 {
     public static void main(final String[] args)
@@ -32,11 +30,11 @@ public class ChatClient
         final AgentRunner cliAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, cliAgent);
 
         System.out.println("Setup agent.PublishingAgent");
-        final PublishingAgent publishingAgent = new PublishingAgent(ringBuffer, CHANNEL);
+        final PublishingAgent publishingAgent = new PublishingAgent(ringBuffer);
         final AgentRunner publishingAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, publishingAgent);
 
         System.out.println("Setup agent.SubscriptionAgent");
-        final SubscriptionAgent subscriptionAgent = new SubscriptionAgent(CHANNEL);
+        final SubscriptionAgent subscriptionAgent = new SubscriptionAgent();
         final AgentRunner subscriptionAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, subscriptionAgent);
 
         System.out.println("Start agent runners");

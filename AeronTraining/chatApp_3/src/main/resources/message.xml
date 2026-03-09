@@ -23,8 +23,9 @@
     </types>
 
     <sbe:message name="AeronMessage" id="1">
-        <field name="sendTimestamp" id="1" type="Timestamp"/>
+        <field name="netTimestamp" id="1" type="Timestamp"/>
         <field name="inputTimestamp" id="2" type="Timestamp"/>
-        <data  name="message"   id="3" type="varStringEncoding"/>
+        <field name="serverTimestamp" id="3" type="Timestamp"/>
+        <data  name="message"   id="4" type="varStringEncoding"/>
     </sbe:message>
 </sbe:messageSchema>

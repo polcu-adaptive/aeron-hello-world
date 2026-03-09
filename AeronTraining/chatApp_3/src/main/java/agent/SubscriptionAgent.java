@@ -2,8 +2,9 @@ package agent;
 
 import io.aeron.Aeron;
 import io.aeron.Subscription;
-import io.aeron.logbuffer.FragmentHandler;
+import io.aeron.logbuffer.Header;
 import org.agrona.CloseHelper;
+import org.agrona.DirectBuffer;
 import org.agrona.concurrent.Agent;
 import task3.src.main.resources.AeronMessageDecoder;
 import task3.src.main.resources.MessageHeaderDecoder;
@@ -17,15 +18,7 @@ public class SubscriptionAgent implements Agent
 
     private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     private final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
-    private FragmentHandler fragmentHandler = null;
     private AgentState agentState = AgentState.INITIAL;
-
-    private final String channel;
-
-    public SubscriptionAgent(final String channel)
-    {
-        this.channel = channel;
-    }
 
     @Override
     public void onStart()
@@ -45,8 +38,7 @@ public class SubscriptionAgent implements Agent
             {
                 if (subscription == null)
                 {
-                    subscription = aeron.addSubscription(channel, STREAM_ID);
-                    setupFragmentHandler();
+                    subscription = aeron.addSubscription(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
                 }
                 else if (subscription.isConnected())
                 {
@@ -57,7 +49,7 @@ public class SubscriptionAgent implements Agent
             {
                 if (subscription.isConnected())
                 {
-                    workCount = pollSubscription();
+                    workCount = subscription.poll(this::handleFragment, 10);;
                 }
                 else
                 {
@@ -71,34 +63,29 @@ public class SubscriptionAgent implements Agent
         return workCount;
     }
 
-    private int pollSubscription()
+
+    private void handleFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
-        return subscription.poll(fragmentHandler, 10);
-    }
+        // Decode SBE message
+        headerDecoder.wrap(buffer, offset);
 
-    private void setupFragmentHandler()
-    {
-        fragmentHandler = (buffer, offset, length, header) ->
-        {
-            // Decode SBE message
-            headerDecoder.wrap(buffer, offset);
+        final int actingBlockLength = headerDecoder.blockLength();
+        final int actingVersion = headerDecoder.version();
 
-            final int actingBlockLength = headerDecoder.blockLength();
-            final int actingVersion = headerDecoder.version();
+        final int totalOffset = headerDecoder.encodedLength() + offset;
+        messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
 
-            offset += headerDecoder.encodedLength();
-            messageDecoder.wrap(buffer, offset, actingBlockLength, actingVersion);
+        final String message = messageDecoder.message();
+        final long netTimestamp = messageDecoder.netTimestamp();
+        final long inputTimestamp = messageDecoder.inputTimestamp();
+        final long serverTimestamp = messageDecoder.serverTimestamp();
 
-            final String message = messageDecoder.message();
-            final long sendTimestamp = messageDecoder.sendTimestamp();
-            final long inputTimestamp = messageDecoder.inputTimestamp();
+        // Compute latency
+        final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
+        final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
+        final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
 
-            // Compute latency
-            final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
-            final double sendLatencyMs = (System.nanoTime() - sendTimestamp) / 1_000_000.0;
-
-            System.out.println("|Subscription Agent| Message received: " + message + " - Input latency: " + inputLatencyMs + " ms - Net latency: " + sendLatencyMs + " ms");
-        };
+        System.out.println("|Subscription Agent| Message received: " + message + " - Input latency: " + inputLatencyMs + " ms - Net latency: " + netLatencyMs + " ms - Server latency: " + serverLatencyMs + " ms");
     }
 
     @Override
