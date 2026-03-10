@@ -49,7 +49,7 @@ public class SubscriptionAgent implements Agent
             {
                 if (subscription.isConnected())
                 {
-                    workCount = subscription.poll(this::handleFragment, 10);;
+                    workCount = subscription.poll(this::handleFragment, 10);
                 }
                 else
                 {

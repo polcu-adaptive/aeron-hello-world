@@ -3,6 +3,7 @@ package agent;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
+import org.agrona.concurrent.ringbuffer.RingBuffer;
 import task3.src.main.resources.AeronMessageEncoder;
 import task3.src.main.resources.MessageHeaderEncoder;
 
@@ -16,6 +17,7 @@ public class CliAgent implements Agent
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
 
+    private UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private AgentState agentState = AgentState.INITIAL;
     private String message;
 
@@ -45,26 +47,12 @@ public class CliAgent implements Agent
 
     private void sendMessage(final String message)
     {
-        messageEncoder.wrapAndApplyHeader(ringBuffer.buffer(), 0, headerEncoder);
+        messageEncoder.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
         messageEncoder.message(message);
-        messageEncoder.netTimestamp(0);
-        messageEncoder.serverTimestamp(0);
-        messageEncoder.inputTimestamp(0);
+        messageEncoder.inputTimestamp(System.nanoTime());
 
         final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
-        final int claimIndex = ringBuffer.tryClaim(1, length);
-        if (claimIndex > 0)
-        {
-            messageEncoder.wrapAndApplyHeader(ringBuffer.buffer(), claimIndex, headerEncoder);
-            messageEncoder.message(message);
-            messageEncoder.inputTimestamp(System.nanoTime());
-
-            ringBuffer.commit(claimIndex);
-        }
-        else
-        {
-            System.err.println("Ring Buffer Claim Index is not greater than 0.");
-        }
+        ringBuffer.write(1, unsafeBuffer, 0, length);
     }
 
     @Override

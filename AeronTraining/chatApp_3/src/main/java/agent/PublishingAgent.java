@@ -84,6 +84,7 @@ public class PublishingAgent implements Agent
             System.err.println("Client publishing failed | Response Code: " + offer);
         }
     }
+
     @Override
     public void onClose()
     {
