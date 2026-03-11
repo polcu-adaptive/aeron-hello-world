@@ -1,5 +1,6 @@
 package agent;
 
+import org.agrona.CloseHelper;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
@@ -19,7 +20,6 @@ public class CliAgent implements Agent
 
     private UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private AgentState agentState = AgentState.INITIAL;
-    private String message;
 
     public CliAgent(final OneToOneRingBuffer ringBuffer)
     {
@@ -37,7 +37,7 @@ public class CliAgent implements Agent
             case INITIAL ->
             {
                 System.out.println("|Cli Agent| Enter your message: ");
-                message = scanner.nextLine();
+                final String message = scanner.nextLine();
                 sendMessage(message);
             }
         }
@@ -53,6 +53,12 @@ public class CliAgent implements Agent
 
         final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
         ringBuffer.write(1, unsafeBuffer, 0, length);
+    }
+
+    @Override
+    public void onClose()
+    {
+        agentState = AgentState.CLOSED;
     }
 
     @Override
