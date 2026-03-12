@@ -4,6 +4,7 @@ import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
+import io.aeron.archive.codecs.SourceLocation;
 import io.aeron.logbuffer.Header;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -18,10 +19,10 @@ import static common.Globals.*;
 
 public class ServerAgent implements Agent
 {
-    private AeronArchive archive;
     private Aeron aeron;
     private Subscription subscription;
     private Publication publication;
+    private AeronArchive archiveClient;
     private final UnsafeBuffer outBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
 
     private static final int HEADER_LENGTH = new MessageHeaderEncoder().encodedLength();
@@ -33,6 +34,7 @@ public class ServerAgent implements Agent
     {
         agentState = AgentState.STARTING;
         aeron = connectAeron();
+        archiveClient = launchArchiveClient();
         agentState = AgentState.CONNECTING;
     }
 
@@ -46,6 +48,7 @@ public class ServerAgent implements Agent
             {
                 if (publication == null)
                 {
+                    archiveClient.startRecording(CHAT_OUTBOUND_CHANNEL, STREAM_ID, SourceLocation.LOCAL);
                     publication = aeron.addPublication(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
                 }
 
@@ -95,7 +98,7 @@ public class ServerAgent implements Agent
     @Override
     public void onClose()
     {
-        CloseHelper.close(aeron);
+        CloseHelper.closeAll(aeron, archiveClient, publication, subscription);
         agentState = AgentState.CLOSED;
     }
 
@@ -109,5 +112,14 @@ public class ServerAgent implements Agent
     {
         final Aeron.Context aeronContext = new Aeron.Context().aeronDirectoryName(AERON_DIR_PATH);
         return Aeron.connect(aeronContext);
+    }
+
+    private AeronArchive launchArchiveClient()
+    {
+        final AeronArchive.Context archiveClientContext = new AeronArchive.Context()
+                .aeron(aeron)
+                .controlRequestChannel(ARCHIVE_CONTROL_CHANNEL)
+                .controlResponseChannel(ARCHIVE_CONTROL_RESPONSE_CHANNEL);
+        return AeronArchive.connect(archiveClientContext);
     }
 }

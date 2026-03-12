@@ -4,10 +4,8 @@ import agent.AgentErrorHandler;
 import agent.CliAgent;
 import agent.PublishingAgent;
 import agent.SubscriptionAgent;
-import org.agrona.concurrent.AgentRunner;
-import org.agrona.concurrent.BackoffIdleStrategy;
-import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.CloseHelper;
+import org.agrona.concurrent.*;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 
@@ -41,5 +39,11 @@ public class ChatClient
         AgentRunner.startOnThread(cliAgentRunner);
         AgentRunner.startOnThread(publishingAgentRunner);
         AgentRunner.startOnThread(subscriptionAgentRunner);
+
+        try (final ShutdownSignalBarrier shutdownSignalBarrier = new ShutdownSignalBarrier())
+        {
+            shutdownSignalBarrier.await();
+            CloseHelper.closeAll(cliAgentRunner, publishingAgentRunner, subscriptionAgentRunner);
+        }
     }
 }

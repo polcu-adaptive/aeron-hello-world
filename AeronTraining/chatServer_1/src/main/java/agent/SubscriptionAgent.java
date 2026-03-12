@@ -1,7 +1,12 @@
 package agent;
 
 import io.aeron.Aeron;
+import io.aeron.ChannelUriStringBuilder;
+import io.aeron.CommonContext;
 import io.aeron.Subscription;
+import io.aeron.archive.client.AeronArchive;
+import io.aeron.archive.client.RecordingDescriptorConsumer;
+import io.aeron.archive.client.ReplayMerge;
 import io.aeron.logbuffer.Header;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -15,6 +20,8 @@ public class SubscriptionAgent implements Agent
 {
     private Aeron aeron;
     private Subscription subscription;
+    private AeronArchive archiveClient;
+    private ReplayMerge replayMerge;
 
     private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     private final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
@@ -25,6 +32,7 @@ public class SubscriptionAgent implements Agent
     {
         agentState = AgentState.STARTING;
         aeron = connectAeron();
+        archiveClient = launchArchiveClient();
         agentState = AgentState.CONNECTING;
     }
 
@@ -38,10 +46,39 @@ public class SubscriptionAgent implements Agent
             {
                 if (subscription == null)
                 {
-                    subscription = aeron.addSubscription(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+                    subscription = aeron.addSubscription(MANUAL_MDC_CHANNEL, STREAM_ID);
+                    agentState = AgentState.REPLAY_CHECK;
                 }
-                else if (subscription.isConnected())
+            }
+            case REPLAY_CHECK ->
+            {
+                final RecordingInfo recordingInfo = getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+                if (recordingInfo.getRecordingId() != Long.MIN_VALUE)
                 {
+                    final String replayChannel = new ChannelUriStringBuilder()
+                            .media(CommonContext.UDP_MEDIA)
+                            .endpoint("localhost:0")
+                            .build();
+
+                    final int port = 7000 + new java.util.Random().nextInt(1000);
+                    final String replayDestination = new ChannelUriStringBuilder()
+                        .media(CommonContext.UDP_MEDIA)
+                        .endpoint("localhost:" + port)
+                        .build();
+
+                    replayMerge = new ReplayMerge(subscription, archiveClient, replayChannel, replayDestination,
+                            CHAT_OUTBOUND_CHANNEL, recordingInfo.getRecordingId(), 0L);
+
+                    agentState = AgentState.REPLAYING;
+                }
+            }
+            case REPLAYING ->
+            {
+                workCount += replayMerge.poll(this::handleFragment, 10);
+
+                if (replayMerge.isMerged())
+                {
+                    System.out.println("Replay completed, switching to live channel");
                     agentState = AgentState.STEADY;
                 }
             }
@@ -91,7 +128,7 @@ public class SubscriptionAgent implements Agent
     @Override
     public void onClose()
     {
-        CloseHelper.close(aeron);
+        CloseHelper.closeAll(aeron, subscription, archiveClient, replayMerge);
         agentState = AgentState.CLOSED;
     }
 
@@ -105,5 +142,42 @@ public class SubscriptionAgent implements Agent
     {
         final Aeron.Context aeronContext = new Aeron.Context().aeronDirectoryName(AERON_DIR_PATH);
         return Aeron.connect(aeronContext);
+    }
+
+    private AeronArchive launchArchiveClient()
+    {
+        final AeronArchive.Context archiveClientContext = new AeronArchive.Context()
+                .aeron(aeron)
+                .controlRequestChannel(ARCHIVE_CONTROL_CHANNEL)
+                .controlResponseChannel(ARCHIVE_CONTROL_RESPONSE_CHANNEL);
+        return AeronArchive.connect(archiveClientContext);
+    }
+
+    private RecordingInfo getRecordingId(final AeronArchive archive, final String remoteRecordedChannel, final int remoteRecordedStream)
+    {
+        final RecordingInfo recordingInfo = new RecordingInfo();
+        final RecordingDescriptorConsumer consumer = (controlSessionId, correlationId, recordingId,
+                                                      startTimestamp, stopTimestamp, startPosition,
+                                                      stopPosition, initialTermId, segmentFileLength,
+                                                      termBufferLength, mtuLength, sessionId,
+                                                      streamId, strippedChannel, originalChannel,
+                                                      sourceIdentity) ->
+        {
+            recordingInfo.setRecordingId(recordingId);
+            recordingInfo.setSessionId(sessionId);
+        };
+
+        final var fromRecordingId = 0L;
+        final var recordCount = 100;
+
+        final int foundCount = archive.listRecordingsForUri(fromRecordingId, recordCount, remoteRecordedChannel,
+                remoteRecordedStream, consumer);
+
+        if (0 == foundCount)
+        {
+            recordingInfo.setRecordingId(Long.MIN_VALUE);
+        }
+
+        return recordingInfo;
     }
 }

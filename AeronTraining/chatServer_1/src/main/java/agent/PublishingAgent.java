@@ -16,7 +16,6 @@ import static common.Globals.*;
 
 public class PublishingAgent implements Agent
 {
-    private final UnsafeBuffer buffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
     private Aeron aeron;
     private Publication publication;
 
@@ -88,7 +87,7 @@ public class PublishingAgent implements Agent
     @Override
     public void onClose()
     {
-        CloseHelper.close(aeron);
+        CloseHelper.closeAll(aeron, publication);
         agentState = AgentState.CLOSED;
     }
 

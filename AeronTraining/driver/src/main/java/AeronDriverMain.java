@@ -1,4 +1,5 @@
 import io.aeron.driver.MediaDriver;
+import org.agrona.CloseHelper;
 import org.agrona.concurrent.ShutdownSignalBarrier;
 
 public class AeronDriverMain
@@ -17,6 +18,7 @@ public class AeronDriverMain
              final MediaDriver mediaDriver = MediaDriver.launch(context))
         {
             shutdownSignalBarrier.await();
+            CloseHelper.close(mediaDriver);
         }
     }
 }
