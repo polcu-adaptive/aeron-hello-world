@@ -1,7 +1,7 @@
-package common;
+package com.weareadaptive.chatServer.task2;
 
-import agent.AgentErrorHandler;
-import agent.ServerAgent;
+import com.weareadaptive.chatServer.task2.agent.AgentErrorHandler;
+import com.weareadaptive.chatServer.task2.agent.ServerAgent;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.AgentRunner;
 import org.agrona.concurrent.IdleStrategy;

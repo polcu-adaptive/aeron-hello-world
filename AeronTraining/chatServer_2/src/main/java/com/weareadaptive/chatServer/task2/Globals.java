@@ -1,4 +1,4 @@
-package common;
+package com.weareadaptive.chatServer.task2;
 
 import io.aeron.ChannelUriStringBuilder;
 import io.aeron.CommonContext;
@@ -42,5 +42,10 @@ public class Globals
     public static final String REPLAY_CHANNEL = new ChannelUriStringBuilder()
         .media(CommonContext.UDP_MEDIA)
         .endpoint("localhost:8005")
+        .build();
+
+    public static final String WEB_CHANNEL = new ChannelUriStringBuilder()
+        .media(CommonContext.UDP_MEDIA)
+        .endpoint("localhost:8666")
         .build();
 }

@@ -1,11 +1,11 @@
-package common;
+package com.weareadaptive.chatServer.task2;
 
 import io.aeron.archive.Archive;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.ShutdownSignalBarrier;
 
-import static common.Globals.ARCHIVE_CONTROL_CHANNEL;
-import static common.Globals.ARCHIVE_REPLICATION_CHANNEL;
+import static com.weareadaptive.chatServer.task2.Globals.ARCHIVE_CONTROL_CHANNEL;
+import static com.weareadaptive.chatServer.task2.Globals.ARCHIVE_REPLICATION_CHANNEL;
 
 public class ArchiveSetup
 {

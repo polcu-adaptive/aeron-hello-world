@@ -1,4 +1,4 @@
-package agent;
+package com.weareadaptive.chatServer.task2.agent;
 
 import io.aeron.Aeron;
 import io.aeron.Subscription;
@@ -11,7 +11,7 @@ import org.agrona.concurrent.Agent;
 import task3.src.main.resources.AeronMessageDecoder;
 import task3.src.main.resources.MessageHeaderDecoder;
 
-import static common.Globals.*;
+import static com.weareadaptive.chatServer.task2.Globals.*;
 
 public class SubscriptionAgent implements Agent
 {

@@ -19,6 +19,9 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     implementation("io.aeron:aeron-all:1.50.2")
     "sbe"("uk.co.real-logic:sbe-tool:1.37.1")
+    implementation("io.vertx:vertx-core:5.0.8")
+    implementation("io.vertx:vertx-web:5.0.8")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
 }
 
 tasks.test {

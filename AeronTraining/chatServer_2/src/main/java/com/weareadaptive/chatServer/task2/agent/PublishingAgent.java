@@ -1,4 +1,4 @@
-package agent;
+package com.weareadaptive.chatServer.task2.agent;
 
 import io.aeron.Aeron;
 import io.aeron.Publication;
@@ -9,7 +9,7 @@ import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import task3.src.main.resources.AeronMessageEncoder;
 import task3.src.main.resources.MessageHeaderEncoder;
 
-import static common.Globals.*;
+import static com.weareadaptive.chatServer.task2.Globals.*;
 
 public class PublishingAgent implements Agent
 {

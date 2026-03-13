@@ -1,4 +1,4 @@
-package agent;
+package com.weareadaptive.chatServer.task2.agent;
 
 import org.agrona.ErrorHandler;
 

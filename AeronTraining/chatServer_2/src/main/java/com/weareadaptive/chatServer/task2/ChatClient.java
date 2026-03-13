@@ -1,9 +1,9 @@
-package common;
+package com.weareadaptive.chatServer.task2;
 
-import agent.AgentErrorHandler;
-import agent.CliAgent;
-import agent.PublishingAgent;
-import agent.SubscriptionAgent;
+import com.weareadaptive.chatServer.task2.agent.AgentErrorHandler;
+import com.weareadaptive.chatServer.task2.agent.CliAgent;
+import com.weareadaptive.chatServer.task2.agent.PublishingAgent;
+import com.weareadaptive.chatServer.task2.agent.SubscriptionAgent;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.*;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
