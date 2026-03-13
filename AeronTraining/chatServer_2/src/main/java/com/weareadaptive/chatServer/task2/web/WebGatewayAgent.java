@@ -37,15 +37,6 @@ public class WebGatewayAgent implements Agent
         router.post(MESSAGE_PATH).handler(this::handlePublishMessageRequest);
     }
 
-//    public static void registerService(final Router router,
-//                                       final AuthenticationService authenticationService,
-//                                       final AuctionService auctionService)
-//    {
-//        final AuctionWebService webService = new AuctionWebService(auctionService);
-//
-//        router.post(MESSAGE_PATH).handler(webService::handleCreateAuctionRequest);
-//    }
-
     private void handlePublishMessageRequest(final RoutingContext context)
     {
         System.out.println("Received publish message request");
@@ -81,7 +72,7 @@ public class WebGatewayAgent implements Agent
             {
                 if (publication == null)
                 {
-                    publication = aeron.addPublication(WEB_CHANNEL, STREAM_ID);
+                    publication = aeron.addPublication(CHAT_INBOUND_CHANNEL, STREAM_ID);
                 }
                 else
                 {
