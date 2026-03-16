@@ -10,7 +10,6 @@ import io.aeron.logbuffer.Header;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.http.WebSocket;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -25,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 import static com.weareadaptive.chatServer.task2.Globals.*;
-import static com.weareadaptive.chatServer.task2.agent.RecordingInfo.getRecordingId;
 
 public class WebGatewayAgent implements Agent
 {
@@ -79,8 +77,7 @@ public class WebGatewayAgent implements Agent
                 {
                     subscription = aeron.addSubscription(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
                 }
-
-                if (publication.isConnected())
+                if (publication.isConnected() && subscription.isConnected())
                 {
                     agentState = AgentState.STEADY;
                 }
@@ -96,7 +93,7 @@ public class WebGatewayAgent implements Agent
 
                 if (subscription.isConnected())
                 {
-                    subscription.poll(this::liveSubscriptionHandleFragment, 10);
+                    workCount += subscription.poll(this::liveSubscriptionHandleFragment, 10);
                 }
             }
             case STOPPED ->
@@ -112,6 +109,7 @@ public class WebGatewayAgent implements Agent
         Subscription replaySubscription = null;
         boolean isReplaying = false;
 
+        // Create a replaySubscription if the new client has pending messages
         final RecordingInfo recordingInfo = RecordingInfo.getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
         if (recordingInfo.getRecordingId() != Long.MIN_VALUE)
         {
@@ -123,7 +121,6 @@ public class WebGatewayAgent implements Agent
             archiveClient.startReplay(recordingInfo.getRecordingId(), 0L, Long.MAX_VALUE, REPLAY_CHANNEL, replayStreamId);
             isReplaying = true;
         }
-
         webSockets.add(new WebSocketState(webSocket, replaySubscription, isReplaying));
 
 
