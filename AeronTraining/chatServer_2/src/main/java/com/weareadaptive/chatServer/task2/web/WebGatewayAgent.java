@@ -3,16 +3,24 @@ package com.weareadaptive.chatServer.task2.web;
 import com.weareadaptive.chatServer.task2.agent.AgentState;
 import io.aeron.Aeron;
 import io.aeron.Publication;
+import io.aeron.Subscription;
+import io.aeron.logbuffer.Header;
+import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import org.agrona.DirectBuffer;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
+import task3.src.main.resources.AeronMessageDecoder;
 import task3.src.main.resources.AeronMessageEncoder;
+import task3.src.main.resources.MessageHeaderDecoder;
 import task3.src.main.resources.MessageHeaderEncoder;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 
 import static com.weareadaptive.chatServer.task2.Globals.*;
@@ -22,19 +30,38 @@ public class WebGatewayAgent implements Agent
     public static final String MESSAGE_PATH = "/message";
 
     private final Queue<String> messagesToPublish;
+    private final List<ServerWebSocket> webSockets;
     private Aeron aeron;
     private Publication publication;
+    private Subscription subscription;
+
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
+    private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    private final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
 
-    private UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
+    private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private AgentState agentState = AgentState.INITIAL;
 
     public WebGatewayAgent(final Router router)
     {
         messagesToPublish = new ArrayDeque<>();
+        webSockets = new ArrayList<>();
 
         router.post(MESSAGE_PATH).handler(this::handlePublishMessageRequest);
+    }
+
+    public void registerWebSocket(final ServerWebSocket webSocket)
+    {
+        webSockets.add(webSocket);
+
+        webSocket.textMessageHandler(text ->
+        {
+            System.out.println("Websocket message received: " + text);
+            messagesToPublish.add(text);
+        });
+
+        webSocket.closeHandler(v -> webSockets.remove(webSocket));
     }
 
     private void handlePublishMessageRequest(final RoutingContext context)
@@ -74,7 +101,12 @@ public class WebGatewayAgent implements Agent
                 {
                     publication = aeron.addPublication(CHAT_INBOUND_CHANNEL, STREAM_ID);
                 }
-                else
+                if (subscription == null)
+                {
+                    subscription = aeron.addSubscription(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+                }
+
+                if (publication.isConnected() && subscription.isConnected())
                 {
                     agentState = AgentState.STEADY;
                 }
@@ -84,6 +116,11 @@ public class WebGatewayAgent implements Agent
                 if (publication.isConnected() && !messagesToPublish.isEmpty())
                 {
                     workCount += (int)publishMessage();
+                }
+
+                if (subscription.isConnected())
+                {
+                    subscription.poll(this::handleFragment, 10);
                 }
             }
             case STOPPED ->
@@ -104,6 +141,30 @@ public class WebGatewayAgent implements Agent
 
         final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
         return publication.offer(unsafeBuffer, 0, length);
+    }
+
+    private void handleFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
+    {
+        // Decode SBE message
+        headerDecoder.wrap(buffer, offset);
+
+        final int actingBlockLength = headerDecoder.blockLength();
+        final int actingVersion = headerDecoder.version();
+
+        final int totalOffset = headerDecoder.encodedLength() + offset;
+        messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
+
+        final String message = messageDecoder.message();
+        final long netTimestamp = messageDecoder.netTimestamp();
+        final long inputTimestamp = messageDecoder.inputTimestamp();
+        final long serverTimestamp = messageDecoder.serverTimestamp();
+
+        // Compute latency
+        final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
+        final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
+        final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
+
+        // TODO: Build JSON and send over websockets
     }
 
     @Override

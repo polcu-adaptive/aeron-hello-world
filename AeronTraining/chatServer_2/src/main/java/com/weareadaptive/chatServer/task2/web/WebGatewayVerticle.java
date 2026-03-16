@@ -39,6 +39,13 @@ public class WebGatewayVerticle extends VerticleBase
         AgentRunner.startOnThread(webGatewayAgentRunner);
 
         httpServer = vertx.createHttpServer();
+
+        httpServer.webSocketHandler(webSocket ->
+        {
+            System.out.println("Register web socket");
+            webGatewayAgent.registerWebSocket(webSocket);
+        });
+
         return httpServer
                 .requestHandler(router)
                 .listen(configuredPort)
