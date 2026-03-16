@@ -5,7 +5,9 @@ import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.Header;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -31,6 +33,8 @@ public class WebGatewayAgent implements Agent
 
     private final Queue<String> messagesToPublish;
     private final List<ServerWebSocket> webSockets;
+    private final Vertx vertx;
+
     private Aeron aeron;
     private Publication publication;
     private Subscription subscription;
@@ -43,10 +47,11 @@ public class WebGatewayAgent implements Agent
     private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private AgentState agentState = AgentState.INITIAL;
 
-    public WebGatewayAgent(final Router router)
+    public WebGatewayAgent(final Router router, final Vertx vertx)
     {
         messagesToPublish = new ArrayDeque<>();
         webSockets = new ArrayList<>();
+        this.vertx = vertx;
 
         router.post(MESSAGE_PATH).handler(this::handlePublishMessageRequest);
     }
@@ -78,6 +83,20 @@ public class WebGatewayAgent implements Agent
 
         messagesToPublish.add(request.message());
         context.json(JsonObject.mapFrom(request));
+    }
+
+    private void broadcastToWebSockets(final String message)
+    {
+        vertx.runOnContext(v ->
+        {
+            for (final ServerWebSocket webSocket : webSockets)
+            {
+                if (!webSocket.isClosed())
+                {
+                    webSocket.writeTextMessage(message);
+                }
+            }
+        });
     }
 
     @Override
@@ -165,6 +184,13 @@ public class WebGatewayAgent implements Agent
         final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
 
         // TODO: Build JSON and send over websockets
+        final JsonObject jsonObject = new JsonObject()
+                .put("message", message)
+                .put("inputLatencyMs", inputLatencyMs)
+                .put("netLatencyMs", netLatencyMs)
+                .put("serverLatencyMs", serverLatencyMs);
+
+        broadcastToWebSockets(jsonObject.encode());
     }
 
     @Override

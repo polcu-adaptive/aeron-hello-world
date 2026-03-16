@@ -34,7 +34,7 @@ public class WebGatewayVerticle extends VerticleBase
 
         final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
-        final WebGatewayAgent webGatewayAgent = new WebGatewayAgent(router);
+        final WebGatewayAgent webGatewayAgent = new WebGatewayAgent(router, vertx);
         final AgentRunner webGatewayAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, webGatewayAgent);
         AgentRunner.startOnThread(webGatewayAgentRunner);
 
