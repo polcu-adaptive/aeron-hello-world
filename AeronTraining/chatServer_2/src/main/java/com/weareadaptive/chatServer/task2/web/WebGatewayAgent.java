@@ -1,16 +1,16 @@
 package com.weareadaptive.chatServer.task2.web;
 
 import com.weareadaptive.chatServer.task2.agent.AgentState;
+import com.weareadaptive.chatServer.task2.agent.RecordingInfo;
 import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.Subscription;
+import io.aeron.archive.client.AeronArchive;
 import io.aeron.logbuffer.Header;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.ServerWebSocket;
-import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
+import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
@@ -26,11 +26,10 @@ import java.util.List;
 import java.util.Queue;
 
 import static com.weareadaptive.chatServer.task2.Globals.*;
+import static com.weareadaptive.chatServer.task2.agent.RecordingInfo.getRecordingId;
 
 public class WebGatewayAgent implements Agent
 {
-    public static final String MESSAGE_PATH = "/message";
-
     private final Queue<String> messagesToPublish;
     private final List<ServerWebSocket> webSockets;
     private final Vertx vertx;
@@ -38,6 +37,7 @@ public class WebGatewayAgent implements Agent
     private Aeron aeron;
     private Publication publication;
     private Subscription subscription;
+    private AeronArchive archiveClient;
 
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
@@ -47,56 +47,11 @@ public class WebGatewayAgent implements Agent
     private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private AgentState agentState = AgentState.INITIAL;
 
-    public WebGatewayAgent(final Router router, final Vertx vertx)
+    public WebGatewayAgent(final Vertx vertx)
     {
         messagesToPublish = new ArrayDeque<>();
         webSockets = new ArrayList<>();
         this.vertx = vertx;
-
-        router.post(MESSAGE_PATH).handler(this::handlePublishMessageRequest);
-    }
-
-    public void registerWebSocket(final ServerWebSocket webSocket)
-    {
-        webSockets.add(webSocket);
-
-        webSocket.textMessageHandler(text ->
-        {
-            System.out.println("Websocket message received: " + text);
-            messagesToPublish.add(text);
-        });
-
-        webSocket.closeHandler(v -> webSockets.remove(webSocket));
-    }
-
-    private void handlePublishMessageRequest(final RoutingContext context)
-    {
-        System.out.println("Received publish message request");
-
-        if (context.body().isEmpty())
-        {
-            System.err.println("The routing context body is empty");
-        }
-
-        final JsonObject jsonObject = context.body().asJsonObject();
-        final PublishMessageRequest request = jsonObject.mapTo(PublishMessageRequest.class);
-
-        messagesToPublish.add(request.message());
-        context.json(JsonObject.mapFrom(request));
-    }
-
-    private void broadcastToWebSockets(final String message)
-    {
-        vertx.runOnContext(v ->
-        {
-            for (final ServerWebSocket webSocket : webSockets)
-            {
-                if (!webSocket.isClosed())
-                {
-                    webSocket.writeTextMessage(message);
-                }
-            }
-        });
     }
 
     @Override
@@ -104,6 +59,7 @@ public class WebGatewayAgent implements Agent
     {
         agentState = AgentState.STARTING;
         aeron = connectAeron();
+        archiveClient = launchArchiveClient();
         agentState = AgentState.CONNECTING;
     }
 
@@ -120,13 +76,21 @@ public class WebGatewayAgent implements Agent
                 {
                     publication = aeron.addPublication(CHAT_INBOUND_CHANNEL, STREAM_ID);
                 }
-                if (subscription == null)
-                {
-                    subscription = aeron.addSubscription(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
-                }
 
-                if (publication.isConnected() && subscription.isConnected())
+                if (publication.isConnected())
                 {
+                    agentState = AgentState.REPLAY_CHECK;
+                }
+            }
+            case REPLAY_CHECK ->
+            {
+                final RecordingInfo recordingInfo = getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+                if (recordingInfo.getRecordingId() != Long.MIN_VALUE)
+                {
+                    final int replayStreamId = new java.util.Random().nextInt(1000);
+
+                    subscription = aeron.addSubscription(REPLAY_CHANNEL, replayStreamId);
+                    archiveClient.startReplay(recordingInfo.getRecordingId(), 0L, Long.MAX_VALUE, REPLAY_CHANNEL, replayStreamId);
                     agentState = AgentState.STEADY;
                 }
             }
@@ -148,6 +112,37 @@ public class WebGatewayAgent implements Agent
         }
 
         return workCount;
+    }
+
+    public void registerWebSocket(final ServerWebSocket webSocket)
+    {
+        webSockets.add(webSocket);
+
+        webSocket.textMessageHandler(text ->
+        {
+            System.out.println("Websocket message received: " + text);
+            messagesToPublish.add(text);
+        });
+
+        webSocket.closeHandler(v ->
+        {
+            webSockets.remove(webSocket);
+            System.out.println("Websocket has been closed");
+        });
+    }
+
+    private void broadcastToWebSockets(final String message)
+    {
+        vertx.runOnContext(v ->
+        {
+            for (final ServerWebSocket webSocket : webSockets)
+            {
+                if (!webSocket.isClosed())
+                {
+                    webSocket.writeTextMessage(message);
+                }
+            }
+        });
     }
 
     private long publishMessage()
@@ -183,7 +178,6 @@ public class WebGatewayAgent implements Agent
         final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
         final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
 
-        // TODO: Build JSON and send over websockets
         final JsonObject jsonObject = new JsonObject()
                 .put("message", message)
                 .put("inputLatencyMs", inputLatencyMs)
@@ -196,7 +190,7 @@ public class WebGatewayAgent implements Agent
     @Override
     public void onClose()
     {
-
+        CloseHelper.closeAll(aeron, publication, subscription, archiveClient);
     }
 
     @Override
@@ -209,5 +203,14 @@ public class WebGatewayAgent implements Agent
     {
         final Aeron.Context aeronContext = new Aeron.Context().aeronDirectoryName(AERON_DIR_PATH);
         return Aeron.connect(aeronContext);
+    }
+
+    private AeronArchive launchArchiveClient()
+    {
+        final AeronArchive.Context archiveClientContext = new AeronArchive.Context()
+                .aeron(aeron)
+                .controlRequestChannel(ARCHIVE_CONTROL_CHANNEL)
+                .controlResponseChannel(ARCHIVE_CONTROL_RESPONSE_CHANNEL);
+        return AeronArchive.connect(archiveClientContext);
     }
 }

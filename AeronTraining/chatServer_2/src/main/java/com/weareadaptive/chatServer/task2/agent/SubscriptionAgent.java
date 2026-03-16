@@ -49,7 +49,7 @@ public class SubscriptionAgent implements Agent
             }
             case REPLAY_CHECK ->
             {
-                final RecordingInfo recordingInfo = getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+                final RecordingInfo recordingInfo = RecordingInfo.getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
                 if (recordingInfo.getRecordingId() != Long.MIN_VALUE)
                 {
                     final int replayStreamId = new java.util.Random().nextInt(1000);
@@ -134,33 +134,5 @@ public class SubscriptionAgent implements Agent
                 .controlRequestChannel(ARCHIVE_CONTROL_CHANNEL)
                 .controlResponseChannel(ARCHIVE_CONTROL_RESPONSE_CHANNEL);
         return AeronArchive.connect(archiveClientContext);
-    }
-
-    private RecordingInfo getRecordingId(final AeronArchive archive, final String remoteRecordedChannel, final int remoteRecordedStream)
-    {
-        final RecordingInfo recordingInfo = new RecordingInfo();
-        final RecordingDescriptorConsumer consumer = (controlSessionId, correlationId, recordingId,
-                                                      startTimestamp, stopTimestamp, startPosition,
-                                                      stopPosition, initialTermId, segmentFileLength,
-                                                      termBufferLength, mtuLength, sessionId,
-                                                      streamId, strippedChannel, originalChannel,
-                                                      sourceIdentity) ->
-        {
-            recordingInfo.setRecordingId(recordingId);
-            recordingInfo.setSessionId(sessionId);
-        };
-
-        final var fromRecordingId = 0L;
-        final var recordCount = 100;
-
-        final int foundCount = archive.listRecordingsForUri(fromRecordingId, recordCount, remoteRecordedChannel,
-                remoteRecordedStream, consumer);
-
-        if (0 == foundCount)
-        {
-            recordingInfo.setRecordingId(Long.MIN_VALUE);
-        }
-
-        return recordingInfo;
     }
 }

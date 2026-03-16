@@ -14,16 +14,10 @@ import org.agrona.concurrent.IdleStrategy;
 public class WebGatewayVerticle extends VerticleBase
 {
     private final int configuredPort;
-    private HttpServer httpServer;
 
     public WebGatewayVerticle(final int configuredPort)
     {
         this.configuredPort = configuredPort;
-    }
-
-    public int boundPort()
-    {
-        return httpServer.actualPort();
     }
 
     @Override
@@ -34,11 +28,11 @@ public class WebGatewayVerticle extends VerticleBase
 
         final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
-        final WebGatewayAgent webGatewayAgent = new WebGatewayAgent(router, vertx);
+        final WebGatewayAgent webGatewayAgent = new WebGatewayAgent(vertx);
         final AgentRunner webGatewayAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, webGatewayAgent);
         AgentRunner.startOnThread(webGatewayAgentRunner);
 
-        httpServer = vertx.createHttpServer();
+        final HttpServer httpServer = vertx.createHttpServer();
 
         httpServer.webSocketHandler(webSocket ->
         {
@@ -47,7 +41,6 @@ public class WebGatewayVerticle extends VerticleBase
         });
 
         return httpServer
-                .requestHandler(router)
                 .listen(configuredPort)
                 .onSuccess(server -> System.out.println("HTTP server started on port " + server.actualPort()))
                 .onFailure(throwable -> System.out.println("HTTP server error"));
