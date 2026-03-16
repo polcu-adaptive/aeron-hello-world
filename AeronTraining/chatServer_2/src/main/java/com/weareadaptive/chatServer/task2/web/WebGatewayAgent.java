@@ -9,6 +9,8 @@ import io.aeron.archive.client.AeronArchive;
 import io.aeron.logbuffer.Header;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.http.WebSocket;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -20,10 +22,7 @@ import task3.src.main.resources.MessageHeaderDecoder;
 import task3.src.main.resources.MessageHeaderEncoder;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 
 import static com.weareadaptive.chatServer.task2.Globals.*;
 import static com.weareadaptive.chatServer.task2.agent.RecordingInfo.getRecordingId;
@@ -31,7 +30,7 @@ import static com.weareadaptive.chatServer.task2.agent.RecordingInfo.getRecordin
 public class WebGatewayAgent implements Agent
 {
     private final Queue<String> messagesToPublish;
-    private final List<ServerWebSocket> webSockets;
+    private final List<WebSocketState> webSockets;
     private final Vertx vertx;
 
     private Aeron aeron;
@@ -76,26 +75,20 @@ public class WebGatewayAgent implements Agent
                 {
                     publication = aeron.addPublication(CHAT_INBOUND_CHANNEL, STREAM_ID);
                 }
+                if (subscription == null)
+                {
+                    subscription = aeron.addSubscription(CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+                }
 
                 if (publication.isConnected())
                 {
-                    agentState = AgentState.REPLAY_CHECK;
-                }
-            }
-            case REPLAY_CHECK ->
-            {
-                final RecordingInfo recordingInfo = getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
-                if (recordingInfo.getRecordingId() != Long.MIN_VALUE)
-                {
-                    final int replayStreamId = new java.util.Random().nextInt(1000);
-
-                    subscription = aeron.addSubscription(REPLAY_CHANNEL, replayStreamId);
-                    archiveClient.startReplay(recordingInfo.getRecordingId(), 0L, Long.MAX_VALUE, REPLAY_CHANNEL, replayStreamId);
                     agentState = AgentState.STEADY;
                 }
             }
             case STEADY ->
             {
+                replayToWebSockets();
+
                 if (publication.isConnected() && !messagesToPublish.isEmpty())
                 {
                     workCount += (int)publishMessage();
@@ -103,7 +96,7 @@ public class WebGatewayAgent implements Agent
 
                 if (subscription.isConnected())
                 {
-                    subscription.poll(this::handleFragment, 10);
+                    subscription.poll(this::liveSubscriptionHandleFragment, 10);
                 }
             }
             case STOPPED ->
@@ -116,7 +109,23 @@ public class WebGatewayAgent implements Agent
 
     public void registerWebSocket(final ServerWebSocket webSocket)
     {
-        webSockets.add(webSocket);
+        Subscription replaySubscription = null;
+        boolean isReplaying = false;
+
+        final RecordingInfo recordingInfo = RecordingInfo.getRecordingId(archiveClient, CHAT_OUTBOUND_CHANNEL, STREAM_ID);
+        if (recordingInfo.getRecordingId() != Long.MIN_VALUE)
+        {
+            System.out.println("Websocket has missed messages. Replaying");
+
+            final int replayStreamId = new java.util.Random().nextInt(10000);
+
+            replaySubscription = aeron.addSubscription(REPLAY_CHANNEL, replayStreamId);
+            archiveClient.startReplay(recordingInfo.getRecordingId(), 0L, Long.MAX_VALUE, REPLAY_CHANNEL, replayStreamId);
+            isReplaying = true;
+        }
+
+        webSockets.add(new WebSocketState(webSocket, replaySubscription, isReplaying));
+
 
         webSocket.textMessageHandler(text ->
         {
@@ -126,8 +135,17 @@ public class WebGatewayAgent implements Agent
 
         webSocket.closeHandler(v ->
         {
-            webSockets.remove(webSocket);
-            System.out.println("Websocket has been closed");
+            final Optional<WebSocketState> webSocketState = webSockets.stream().filter(ws -> ws.webSocket().equals(webSocket)).findFirst();
+            if (webSocketState.isPresent())
+            {
+                CloseHelper.close(webSocketState.get().replaySubscription());
+                webSockets.remove(webSocketState.get());
+                System.out.println("Websocket has been closed");
+            }
+            else
+            {
+                System.out.println("Error closing a webSocket");
+            }
         });
     }
 
@@ -135,11 +153,37 @@ public class WebGatewayAgent implements Agent
     {
         vertx.runOnContext(v ->
         {
-            for (final ServerWebSocket webSocket : webSockets)
+            for (final WebSocketState webSocketState : webSockets)
             {
-                if (!webSocket.isClosed())
+                final WebSocket webSocket = webSocketState.webSocket();;
+                if (!webSocket.isClosed() && !webSocketState.isReplaying())
                 {
                     webSocket.writeTextMessage(message);
+                }
+            }
+        });
+    }
+
+    private void replayToWebSockets()
+    {
+        vertx.runOnContext(v ->
+        {
+            for (final WebSocketState webSocketState : webSockets)
+            {
+                if (webSocketState.isReplaying() && webSocketState.replaySubscription().isConnected())
+                {
+                    int fragments = webSocketState.replaySubscription().poll((buffer, offset, length, header) ->
+                    {
+                        final JsonObject jsonObject = handleFragment(buffer, offset, length, header);
+                        System.out.println("Replayed message: " + jsonObject.encode());
+                        webSocketState.webSocket.writeTextMessage(jsonObject.encode());
+                    }, 10);
+
+                    if (fragments == 0)
+                    {
+                        System.out.println("Finished replaying");
+                        webSocketState.isReplaying(false);
+                    }
                 }
             }
         });
@@ -157,7 +201,7 @@ public class WebGatewayAgent implements Agent
         return publication.offer(unsafeBuffer, 0, length);
     }
 
-    private void handleFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
+    private JsonObject handleFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
         // Decode SBE message
         headerDecoder.wrap(buffer, offset);
@@ -178,12 +222,16 @@ public class WebGatewayAgent implements Agent
         final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
         final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
 
-        final JsonObject jsonObject = new JsonObject()
+        return new JsonObject()
                 .put("message", message)
                 .put("inputLatencyMs", inputLatencyMs)
                 .put("netLatencyMs", netLatencyMs)
                 .put("serverLatencyMs", serverLatencyMs);
+    }
 
+    private void liveSubscriptionHandleFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
+    {
+        final JsonObject jsonObject = handleFragment(buffer, offset, length, header);
         broadcastToWebSockets(jsonObject.encode());
     }
 
