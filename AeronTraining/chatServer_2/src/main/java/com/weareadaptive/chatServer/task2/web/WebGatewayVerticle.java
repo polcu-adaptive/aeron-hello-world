@@ -23,9 +23,6 @@ public class WebGatewayVerticle extends VerticleBase
     @Override
     public Future<?> start()
     {
-        final Router router = Router.router(vertx);
-        router.route().handler(BodyHandler.create());
-
         final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
         final WebGatewayAgent webGatewayAgent = new WebGatewayAgent(vertx);

@@ -4,11 +4,16 @@ import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.logbuffer.Header;
+import io.vertx.core.json.JsonObject;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import task3.src.main.resources.AeronMessageDecoder;
 import task3.src.main.resources.MessageHeaderDecoder;
+
+import java.nio.ByteBuffer;
 
 import static com.weareadaptive.chatServer.task3.Globals.*;
 
@@ -22,6 +27,13 @@ public class SubscriptionAgent implements Agent
     private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     private final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
     private AgentState agentState = AgentState.INITIAL;
+
+    private final OneToOneRingBuffer ringBuffer;
+
+    public SubscriptionAgent(final OneToOneRingBuffer ringBuffer)
+    {
+        this.ringBuffer = ringBuffer;
+    }
 
     @Override
     public void onStart()
@@ -85,26 +97,10 @@ public class SubscriptionAgent implements Agent
 
     private void handleFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
-        // Decode SBE message
-        headerDecoder.wrap(buffer, offset);
-
-        final int actingBlockLength = headerDecoder.blockLength();
-        final int actingVersion = headerDecoder.version();
-
-        final int totalOffset = headerDecoder.encodedLength() + offset;
-        messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
-
-        final String message = messageDecoder.message();
-        final long netTimestamp = messageDecoder.netTimestamp();
-        final long inputTimestamp = messageDecoder.inputTimestamp();
-        final long serverTimestamp = messageDecoder.serverTimestamp();
-
-        // Compute latency
-        final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
-        final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
-        final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
-
-        System.out.println("|Subscription Agent| Message received: " + message + " - Input latency: " + inputLatencyMs + " ms - Net latency: " + netLatencyMs + " ms - Server latency: " + serverLatencyMs + " ms");
+        if (!ringBuffer.write(1, buffer, offset, length))
+        {
+            System.err.println("[Subscription Agent] Error writing in outer ringBuffer");
+        }
     }
 
     @Override

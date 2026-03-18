@@ -18,21 +18,19 @@ public class ChatClient
         final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
         final int bufferLength = 4096 + RingBufferDescriptor.TRAILER_LENGTH;
-        final UnsafeBuffer internalBuffer
-                = new UnsafeBuffer(ByteBuffer.allocateDirect(bufferLength));
-        final OneToOneRingBuffer ringBuffer
-                = new OneToOneRingBuffer(internalBuffer);
+        final OneToOneRingBuffer innerRingBuffer = new OneToOneRingBuffer(new UnsafeBuffer(ByteBuffer.allocateDirect(bufferLength)));
+        final OneToOneRingBuffer outerRingBuffer = new OneToOneRingBuffer(new UnsafeBuffer(ByteBuffer.allocateDirect(bufferLength)));
 
         System.out.println("Setup Cli Agent");
-        final CliAgent cliAgent = new CliAgent(ringBuffer);
+        final CliAgent cliAgent = new CliAgent(innerRingBuffer, outerRingBuffer);
         final AgentRunner cliAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, cliAgent);
 
         System.out.println("Setup Publishing Agent");
-        final PublishingAgent publishingAgent = new PublishingAgent(ringBuffer);
+        final PublishingAgent publishingAgent = new PublishingAgent(innerRingBuffer);
         final AgentRunner publishingAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, publishingAgent);
 
         System.out.println("Setup Subscription Agent");
-        final SubscriptionAgent subscriptionAgent = new SubscriptionAgent();
+        final SubscriptionAgent subscriptionAgent = new SubscriptionAgent(outerRingBuffer);
         final AgentRunner subscriptionAgentRunner = new AgentRunner(idleStrategy, new AgentErrorHandler(), null, subscriptionAgent);
 
         System.out.println("Start agent runners");
