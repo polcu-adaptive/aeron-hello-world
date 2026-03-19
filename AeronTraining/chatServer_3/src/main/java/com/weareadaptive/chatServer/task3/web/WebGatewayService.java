@@ -27,6 +27,7 @@ public class WebGatewayService
     private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
 
     private final List<WebSocket> webSocketList = new ArrayList<>();
+    private final List<String> messagesLog = new ArrayList<>();
 
     public WebGatewayService(final OneToOneRingBuffer innerRingBuffer, final OneToOneRingBuffer outerRingBuffer)
     {
@@ -38,6 +39,9 @@ public class WebGatewayService
     {
         System.out.println("Register web socket");
         webSocketList.add(newWebSocket);
+
+        // Replay past messages. This is a blocking operation which is probably not a good idea for large logs
+        messagesLog.forEach(newWebSocket::writeTextMessage);
 
         // On message event
         newWebSocket.textMessageHandler(this::onWebSocketMessage);
@@ -90,17 +94,20 @@ public class WebGatewayService
         final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
         final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
 
-        final JsonObject jsonObject = new JsonObject()
+        final String jsonString = new JsonObject()
                 .put("Message", message)
                 .put("InputLatency", inputLatencyMs)
                 .put("NetLatency", netLatencyMs)
-                .put("ServerLatency", serverLatencyMs);
+                .put("ServerLatency", serverLatencyMs)
+                .encode();
+
+        messagesLog.add(jsonString);
 
         webSocketList.forEach(webSocket ->
         {
             if (!webSocket.isClosed())
             {
-                webSocket.writeTextMessage(jsonObject.encode());
+                webSocket.writeTextMessage(jsonString);
             }
         });
     }

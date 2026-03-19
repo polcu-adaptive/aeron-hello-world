@@ -1,14 +1,8 @@
 package com.weareadaptive.chatServer.task3.web;
 
-import com.weareadaptive.chatServer.task3.agent.AgentErrorHandler;
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
 import io.vertx.core.http.HttpServer;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.BodyHandler;
-import org.agrona.concurrent.AgentRunner;
-import org.agrona.concurrent.BackoffIdleStrategy;
-import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 
 public class WebGatewayVerticle extends VerticleBase
