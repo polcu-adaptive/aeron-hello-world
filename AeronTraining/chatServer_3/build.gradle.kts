@@ -22,6 +22,7 @@ dependencies {
     implementation("io.vertx:vertx-core:5.0.8")
     implementation("io.vertx:vertx-web:5.0.8")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+    compileOnly("org.agrona:agrona:2.3.2")
 }
 
 tasks.test {

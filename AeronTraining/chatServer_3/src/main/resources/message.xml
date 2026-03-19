@@ -14,7 +14,7 @@
             <type name="version"     primitiveType="uint16"/>
         </composite>
 
-        <type name="Timestamp" primitiveType="int64"/>
+        <type name="Long" primitiveType="int64"/>
 
         <composite name="varStringEncoding">
             <type name="length"  primitiveType="uint32" maxValue="1073741824"/>
@@ -22,10 +22,8 @@
         </composite>
     </types>
 
-    <sbe:message name="AeronMessage" id="1">
-        <field name="netTimestamp" id="1" type="Timestamp"/>
-        <field name="inputTimestamp" id="2" type="Timestamp"/>
-        <field name="serverTimestamp" id="3" type="Timestamp"/>
+    <sbe:message name="TextMessage" id="1">
+        <field name="correlationId" id="1" type="Long"/>
         <data  name="message"   id="4" type="varStringEncoding"/>
     </sbe:message>
 </sbe:messageSchema>
