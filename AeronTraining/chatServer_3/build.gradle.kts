@@ -50,6 +50,14 @@ tasks.register<JavaExec>("generateSbe") {
     systemProperty("sbe.validation.stop.on.error", "true")
 
     args(file("src/main/resources/message.xml").absolutePath)
+
+
+    doFirst {
+        println("Usando message.xml: " +
+                file("src/main/resources/message.xml").absolutePath)
+        println("SBE output dir: " +
+                sbeOutputDir.get().asFile.absolutePath)
+    }
 }
 
 sourceSets.main {

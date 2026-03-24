@@ -1,7 +1,6 @@
 package com.weareadaptive.chatServer.task3;
 
 import com.weareadaptive.chatServer.task3.agent.AgentErrorHandler;
-import com.weareadaptive.chatServer.task3.agent.ServerAgent;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.AgentRunner;
 import org.agrona.concurrent.IdleStrategy;
