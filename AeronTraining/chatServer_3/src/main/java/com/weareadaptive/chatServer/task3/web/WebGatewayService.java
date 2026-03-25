@@ -57,7 +57,7 @@ public class WebGatewayService
 
     private void onWebSocketMessage(final String message)
     {
-        System.out.println("Websocket message received: " + message);
+        System.out.println("[Web Gateway Service] Message received from websocket: " + message + " - Sending it to the server");
 
         messageEncoder.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
         messageEncoder.message(message);
@@ -93,5 +93,7 @@ public class WebGatewayService
                 webSocket.writeTextMessage(message);
             }
         });
+
+        System.out.println("[Web Gateway Service] Received message from server: " + message + " - Sending it to connected websockets" + System.lineSeparator());
     }
 }

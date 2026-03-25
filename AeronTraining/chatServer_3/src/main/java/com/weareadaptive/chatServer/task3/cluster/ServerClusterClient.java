@@ -20,17 +20,19 @@ public class ServerClusterClient implements EgressListener
     private final OneToOneRingBuffer outerRingBuffer;
     private final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
+    private boolean running = true;;
+
     public ServerClusterClient(final OneToOneRingBuffer innerRingBuffer, final OneToOneRingBuffer outerRingBuffer)
     {
         this.innerRingBuffer = innerRingBuffer;
         this.outerRingBuffer = outerRingBuffer;
     }
 
-    public void start()
+    public void run()
     {
         System.out.println("[Server Cluster Client] Starting...");
 
-        while (!Thread.currentThread().isInterrupted())
+        while (running && !Thread.currentThread().isInterrupted())
         {
             int workCount = 0;
             workCount += innerRingBuffer.read(this::readAndOfferMessage);
@@ -105,5 +107,10 @@ public class ServerClusterClient implements EgressListener
     public void setAeronCluster(final AeronCluster clusterClient)
     {
         this.clusterClient = clusterClient;
+    }
+
+    public void stop()
+    {
+        this.running = false;
     }
 }

@@ -16,7 +16,7 @@ import static com.weareadaptive.chatServer.task3.Globals.*;
 
 public class WebGateway
 {
-    private static final int CONFIGURED_PORT = 8085;
+    private static final int CONFIGURED_PORT = 8080;
 
     public static void main(final String[] args)
     {
@@ -39,16 +39,16 @@ public class WebGateway
                 .ingressChannel("aeron:udp")
                 .ingressEndpoints(ingressEndpoints);
 
-        try (final ShutdownSignalBarrier shutdownSignalBarrier = new ShutdownSignalBarrier();
-             final AeronCluster aeronCluster = AeronCluster.connect(aeronClusterContext))
+        try (final AeronCluster aeronCluster = AeronCluster.connect(aeronClusterContext))
         {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("Closing Web Gateway");
+                clusterClient.stop();
+                CloseHelper.close(vertx::close);
+            }));
+
             clusterClient.setAeronCluster(aeronCluster);
-            clusterClient.start();
-
-            shutdownSignalBarrier.await();
-
-            System.out.println("Closing Web Gateway");
-            CloseHelper.close(vertx::close);
+            clusterClient.run();
         }
     }
 

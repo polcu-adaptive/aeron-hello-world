@@ -2,6 +2,7 @@ package com.weareadaptive.chatServer.task3.cluster;
 
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
+import io.aeron.cluster.ClusterClientSession;
 import io.aeron.cluster.codecs.CloseReason;
 import io.aeron.cluster.service.ClientSession;
 import io.aeron.cluster.service.Cluster;
@@ -30,6 +31,7 @@ public class ServerClusteredService implements ClusteredService
     private final IdleStrategy idleStrategy = new BackoffIdleStrategy();
     private final MutableDirectBuffer egressBuffer = new ExpandableArrayBuffer(256);
     private final UnsafeBuffer snapshotBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(256));
+    private final List<ClientSession> clientSessions = new ArrayList<>();
 
     private final List<TextMessage> messages = new ArrayList<>();
     private final MessageSnapshotEncoder messageSnapshotEncoder = new MessageSnapshotEncoder();
@@ -60,12 +62,14 @@ public class ServerClusteredService implements ClusteredService
     public void onSessionOpen(final ClientSession session, final long timestamp)
     {
         System.out.println("[Server Clustered Service] Client session opened");
+        clientSessions.add(session);
     }
 
     @Override
     public void onSessionClose(final ClientSession session, final long timestamp, final CloseReason closeReason)
     {
         System.out.println("[Server Clustered Service] Client session closed");
+        clientSessions.remove(session);
     }
 
     @Override
@@ -93,13 +97,13 @@ public class ServerClusteredService implements ClusteredService
         final int egressLength = textMessageEncoder.encodedLength() + headerEncoder.encodedLength();
         System.out.println("[Server Clustered Service] Egress length: " + egressLength);
 
-        long offer = session.offer(egressBuffer, 0, egressLength);
-        while (offer < 0)
+        clientSessions.forEach(clientSession ->
         {
-            System.out.println("[Server Clustered Service] Offering failed - Response code: " + offer);
-            idleStrategy.idle();
-            offer = session.offer(egressBuffer, 0, egressLength);
-        }
+            while (clientSession.offer(egressBuffer, 0, egressLength) < 0)
+            {
+                idleStrategy.idle();
+            }
+        });
 
         System.out.println("[Server Clustered Service] Message sent back to clients" + System.lineSeparator());
     }

@@ -27,16 +27,18 @@ public class ServerCluster
 
         clusterConfig.aeronDirectoryName(AERON_DIR_PATH);
 
-        try (final ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+        try (final ShutdownSignalBarrier shutdownSignalBarrier = new ShutdownSignalBarrier();
              final ClusteredMediaDriver clusteredMediaDriver = ClusteredMediaDriver.launch(
-                     clusterConfig.mediaDriverContext().terminationHook(barrier::signalAll),
+                     clusterConfig.mediaDriverContext().terminationHook(shutdownSignalBarrier::signalAll),
                      clusterConfig.archiveContext(),
-                     clusterConfig.consensusModuleContext().terminationHook(barrier::signalAll));
+                     clusterConfig.consensusModuleContext().terminationHook(shutdownSignalBarrier::signalAll));
              final ClusteredServiceContainer clusteredServiceContainer = ClusteredServiceContainer.launch(
-                clusterConfig.clusteredServiceContext().terminationHook(barrier::signalAll)))
+                clusterConfig.clusteredServiceContext().terminationHook(shutdownSignalBarrier::signalAll)))
         {
+            Runtime.getRuntime().addShutdownHook(new Thread(shutdownSignalBarrier::signalAll));
+
             System.out.println("Starting Cluster Node...");
-            barrier.await();
+            shutdownSignalBarrier.await();
             System.out.println("Cluster node terminated");
         }
     }

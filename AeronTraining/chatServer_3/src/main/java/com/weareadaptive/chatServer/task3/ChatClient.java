@@ -41,17 +41,18 @@ public class ChatClient
 
         System.out.println("Ingress endpoints: " + ingressEndpoints);
 
-        try (final ShutdownSignalBarrier shutdownSignalBarrier = new ShutdownSignalBarrier();
-            AeronCluster aeronCluster = AeronCluster.connect(aeronClusterContext))
+        try (final AeronCluster aeronCluster = AeronCluster.connect(aeronClusterContext))
         {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("Closing CLI Chat Client");
+                clusterClient.stop();
+                CloseHelper.close(cliAgentRunner);
+            }));
+
             AgentRunner.startOnThread(cliAgentRunner);
 
             clusterClient.setAeronCluster(aeronCluster);
-            clusterClient.start();
-
-            shutdownSignalBarrier.await();
-
-            CloseHelper.close(cliAgentRunner);
+            clusterClient.run();
         }
     }
 
