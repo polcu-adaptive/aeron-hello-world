@@ -32,7 +32,10 @@ public class ServerClusterClient implements EgressListener
 
         while (!Thread.currentThread().isInterrupted())
         {
-            final int workCount = innerRingBuffer.read(this::readAndOfferMessage);
+            int workCount = 0;
+            workCount += innerRingBuffer.read(this::readAndOfferMessage);
+            workCount += clusterClient.pollEgress();
+
             if (workCount == 0)
             {
                 clusterClient.sendKeepAlive();

@@ -23,8 +23,7 @@ public class ServerCluster
         clusterConfig.clusteredServiceContext().errorHandler(errorHandler("Clustered Service"));
 
         clusterConfig.consensusModuleContext().ingressChannel(INGRESS_CHANNEL);
-        clusterConfig.consensusModuleContext().egressChannel(EGRESS_CHANNEL);
-        clusterConfig.consensusModuleContext().deleteDirOnStart(false); //true to always start fresh
+        clusterConfig.consensusModuleContext().deleteDirOnStart(true); //true to always start fresh
 
         clusterConfig.aeronDirectoryName(AERON_DIR_PATH);
 

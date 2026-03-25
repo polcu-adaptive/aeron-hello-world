@@ -16,7 +16,7 @@ import static com.weareadaptive.chatServer.task3.Globals.*;
 
 public class WebGateway
 {
-    private static final int CONFIGURED_PORT = 8081;
+    private static final int CONFIGURED_PORT = 8085;
 
     public static void main(final String[] args)
     {
