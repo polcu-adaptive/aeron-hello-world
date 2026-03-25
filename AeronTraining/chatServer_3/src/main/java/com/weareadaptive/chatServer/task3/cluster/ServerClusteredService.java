@@ -51,6 +51,7 @@ public class ServerClusteredService implements ClusteredService
     @Override
     public void onStart(final Cluster cluster, final Image snapshotImage)
     {
+        System.out.println("[Server Clustered Service] On start");
         if (snapshotImage != null)
         {
             System.out.println("[Server Clustered Service] Snapshot found on start. Loading...");

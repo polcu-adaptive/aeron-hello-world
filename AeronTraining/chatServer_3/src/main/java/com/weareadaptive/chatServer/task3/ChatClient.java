@@ -4,8 +4,13 @@ import com.weareadaptive.chatServer.task3.agent.AgentErrorHandler;
 import com.weareadaptive.chatServer.task3.agent.CliAgent;
 import com.weareadaptive.chatServer.task3.cluster.ServerClusterClient;
 import io.aeron.cluster.client.AeronCluster;
+import io.aeron.driver.MediaDriver;
+import io.aeron.samples.cluster.ClusterConfig;
 import org.agrona.CloseHelper;
-import org.agrona.concurrent.*;
+import org.agrona.concurrent.AgentRunner;
+import org.agrona.concurrent.BackoffIdleStrategy;
+import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 
@@ -31,17 +36,23 @@ public class ChatClient
         System.out.println("Setup Cluster Client");
         final ServerClusterClient clusterClient = new ServerClusterClient(innerRingBuffer, outerRingBuffer);
 
-        final String ingressEndpoints = ingressEndpoints(ENDPOINTS);
+        final MediaDriver.Context mediaDriverContext = new MediaDriver.Context()
+                .aeronDirectoryName(AERON_DIR_PATH_CLIENTS)
+                .dirDeleteOnStart(true);
+
+        final String ingressEndpoints = ClusterConfig.ingressEndpoints(
+                ENDPOINTS, PORT_BASE, ClusterConfig.CLIENT_FACING_PORT_OFFSET);
         final AeronCluster.Context aeronClusterContext = new AeronCluster.Context()
                 .egressListener(clusterClient)
                 .egressChannel(EGRESS_CHANNEL)
-                .aeronDirectoryName(AERON_DIR_PATH)
-                .ingressChannel("aeron:udp")
+                .aeronDirectoryName(AERON_DIR_PATH_CLIENTS)
+                .ingressChannel(INGRESS_CHANNEL)
                 .ingressEndpoints(ingressEndpoints);
 
         System.out.println("Ingress endpoints: " + ingressEndpoints);
 
-        try (final AeronCluster aeronCluster = AeronCluster.connect(aeronClusterContext))
+        try (final MediaDriver mediaDriver = MediaDriver.launchEmbedded(mediaDriverContext);
+             final AeronCluster aeronCluster = AeronCluster.connect(aeronClusterContext))
         {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("Closing CLI Chat Client");
@@ -62,7 +73,7 @@ public class ChatClient
         for (int i = 0; i < hostnames.size(); i++)
         {
             sb.append(i).append('=');
-            sb.append(hostnames.get(i)).append(':').append(9010);
+            sb.append(hostnames.get(i)).append(':').append(PORT_BASE + (PORT_OFFSET * i));
             sb.append(',');
         }
 

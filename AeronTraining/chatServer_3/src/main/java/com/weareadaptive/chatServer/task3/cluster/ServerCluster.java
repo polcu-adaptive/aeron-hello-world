@@ -10,11 +10,15 @@ import static com.weareadaptive.chatServer.task3.Globals.*;
 
 public class ServerCluster
 {
-    private static final String INGRESS_CHANNEL = "aeron:udp?endpoint=localhost:9010|term-length=64k";
-
     public static void main(final String[] args)
     {
-        final ClusterConfig clusterConfig = ClusterConfig.create(0, ENDPOINTS, ENDPOINTS, PORT_BASE, new ServerClusteredService());
+        int nodeId = 0;
+        if (args.length > 0)
+        {
+            System.out.println("Starting node " + args[0]);
+            nodeId = Integer.parseInt(args[0]);
+        }
+        final ClusterConfig clusterConfig = ClusterConfig.create(nodeId, ENDPOINTS, ENDPOINTS, PORT_BASE, new ServerClusteredService());
 
         clusterConfig.mediaDriverContext().errorHandler(errorHandler("Media Driver"));
         clusterConfig.archiveContext().errorHandler(errorHandler("Archive"));
@@ -23,9 +27,13 @@ public class ServerCluster
         clusterConfig.clusteredServiceContext().errorHandler(errorHandler("Clustered Service"));
 
         clusterConfig.consensusModuleContext().ingressChannel(INGRESS_CHANNEL);
-        clusterConfig.consensusModuleContext().deleteDirOnStart(true); //true to always start fresh
 
-        clusterConfig.aeronDirectoryName(AERON_DIR_PATH);
+        final String aeronDir = AERON_DIR_PATH + "-" + nodeId;
+        clusterConfig.aeronDirectoryName(aeronDir);
+
+        clusterConfig.mediaDriverContext().dirDeleteOnStart(true);
+        clusterConfig.archiveContext().deleteArchiveOnStart(true);
+        clusterConfig.consensusModuleContext().deleteDirOnStart(true);
 
         try (final ShutdownSignalBarrier shutdownSignalBarrier = new ShutdownSignalBarrier();
              final ClusteredMediaDriver clusteredMediaDriver = ClusteredMediaDriver.launch(

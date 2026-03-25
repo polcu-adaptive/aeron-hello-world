@@ -20,7 +20,7 @@ public class ServerClusterClient implements EgressListener
     private final OneToOneRingBuffer outerRingBuffer;
     private final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
-    private boolean running = true;;
+    private boolean running = true;
 
     public ServerClusterClient(final OneToOneRingBuffer innerRingBuffer, final OneToOneRingBuffer outerRingBuffer)
     {
@@ -88,6 +88,10 @@ public class ServerClusterClient implements EgressListener
             final String ingressEndpoints)
     {
         System.out.println("[Server Cluster Client] On New Leader");
+        System.out.println("[Server Cluster Client] Cluster session id: " + clusterSessionId);
+        System.out.println("[Server Cluster Client] Leadership term id: " + leadershipTermId);
+        System.out.println("[Server Cluster Client] Leader member id: " + leaderMemberId);
+        System.out.println("[Server Cluster Client] Ingress endpoints: " + ingressEndpoints);
     }
 
     @Override
