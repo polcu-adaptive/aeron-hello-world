@@ -33,13 +33,16 @@ public class ServerClusteredService implements ClusteredService
 
     private final List<TextMessage> messages = new ArrayList<>();
     private final MessageSnapshotEncoder messageSnapshotEncoder = new MessageSnapshotEncoder();
+    private final MessageSnapshotDecoder messageSnapshotDecoder = new MessageSnapshotDecoder();
     private final FragmentHandler snapshotLoader;
 
     public ServerClusteredService()
     {
         this.snapshotLoader = (final DirectBuffer buffer, final int offset, final int length, final Header header) ->
         {
-
+            messageSnapshotDecoder.wrapAndApplyHeader(buffer, offset, headerDecoder);
+            final TextMessage textMessage = new TextMessage(messageSnapshotDecoder.message(), messageSnapshotDecoder.timestamp());
+            messages.add(textMessage);
         };
     }
 
@@ -68,30 +71,37 @@ public class ServerClusteredService implements ClusteredService
     @Override
     public void onSessionMessage(final ClientSession session, final long timestamp, final DirectBuffer buffer, final int offset, final int length, Header header)
     {
-        System.out.println("On session message!");
-
         if (session == null)
         {
             System.err.println("[Server Clustered Service] Client session is null");
             return;
         }
 
+        // Decode and store new message
         textMessageDecoder.wrapAndApplyHeader(buffer, offset, headerDecoder);
+        final long correlationId = textMessageDecoder.correlationId();
+        final TextMessage textMessage = new TextMessage(textMessageDecoder.message(), timestamp);
+        messages.add(textMessage);
+
+        System.out.println("[Server Clustered Service] Message received: " + textMessage.message());
+
+        // Encode and send the message through the egress log
         textMessageEncoder.wrapAndApplyHeader(egressBuffer, 0, headerEncoder);
+        textMessageEncoder.correlationId(correlationId);
+        textMessageEncoder.message(textMessage.message());
 
-        textMessageEncoder.correlationId(textMessageDecoder.correlationId());
-        textMessageEncoder.message(textMessageDecoder.message());
+        final int egressLength = textMessageEncoder.encodedLength() + headerEncoder.encodedLength();
+        System.out.println("[Server Clustered Service] Egress length: " + egressLength);
 
-        final TextMessage newTextMessage = new TextMessage(textMessageDecoder.message(), timestamp);
-        messages.add(newTextMessage);
-
-        System.out.println(textMessageDecoder.message() + System.lineSeparator());
-
-        final int egressLength = textMessageDecoder.encodedLength() + headerDecoder.encodedLength();
-        while (session.offer(egressBuffer, 0, egressLength) < 0)
+        long offer = session.offer(egressBuffer, 0, egressLength);
+        while (offer < 0)
         {
+            System.out.println("[Server Clustered Service] Offering failed - Response code: " + offer);
             idleStrategy.idle();
+            offer = session.offer(egressBuffer, 0, egressLength);
         }
+
+        System.out.println("[Server Clustered Service] Message sent back to clients" + System.lineSeparator());
     }
 
     @Override

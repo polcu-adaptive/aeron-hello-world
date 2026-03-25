@@ -5,10 +5,10 @@ import io.vertx.core.json.JsonObject;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
-import task3.src.main.resources.AeronMessageDecoder;
-import task3.src.main.resources.AeronMessageEncoder;
 import task3.src.main.resources.MessageHeaderDecoder;
 import task3.src.main.resources.MessageHeaderEncoder;
+import task3.src.main.resources.TextMessageDecoder;
+import task3.src.main.resources.TextMessageEncoder;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -21,8 +21,8 @@ public class WebGatewayService
 
     private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-    private final AeronMessageEncoder messageEncoder = new AeronMessageEncoder();
-    private final AeronMessageDecoder messageDecoder = new AeronMessageDecoder();
+    private final TextMessageEncoder messageEncoder = new TextMessageEncoder();
+    private final TextMessageDecoder messageDecoder = new TextMessageDecoder();
 
     private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
 
@@ -61,7 +61,6 @@ public class WebGatewayService
 
         messageEncoder.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
         messageEncoder.message(message);
-        messageEncoder.inputTimestamp(System.nanoTime());
 
         final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
         innerRingBuffer.write(1, unsafeBuffer, 0, length);
@@ -85,29 +84,13 @@ public class WebGatewayService
         messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
 
         final String message = messageDecoder.message();
-        final long netTimestamp = messageDecoder.netTimestamp();
-        final long inputTimestamp = messageDecoder.inputTimestamp();
-        final long serverTimestamp = messageDecoder.serverTimestamp();
-
-        // Compute latency
-        final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
-        final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
-        final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
-
-        final String jsonString = new JsonObject()
-                .put("Message", message)
-                .put("InputLatency", inputLatencyMs)
-                .put("NetLatency", netLatencyMs)
-                .put("ServerLatency", serverLatencyMs)
-                .encode();
-
-        messagesLog.add(jsonString);
+        messagesLog.add(message);
 
         webSocketList.forEach(webSocket ->
         {
             if (!webSocket.isClosed())
             {
-                webSocket.writeTextMessage(jsonString);
+                webSocket.writeTextMessage(message);
             }
         });
     }

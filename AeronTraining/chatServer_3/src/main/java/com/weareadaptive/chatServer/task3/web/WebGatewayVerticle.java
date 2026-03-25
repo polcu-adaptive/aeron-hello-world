@@ -28,6 +28,6 @@ public class WebGatewayVerticle extends VerticleBase
         return httpServer
                 .listen(configuredPort)
                 .onSuccess(server -> System.out.println("HTTP server started on port " + server.actualPort()))
-                .onFailure(throwable -> System.out.println("HTTP server error"));
+                .onFailure(Throwable::printStackTrace);
     }
 }

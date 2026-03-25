@@ -81,7 +81,6 @@ public class CliAgent implements Agent
         final String message = inputQueue.poll();
         messageEncoder.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
         messageEncoder.message(message);
-        messageEncoder.inputTimestamp(System.nanoTime());
 
         final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
         innerRingBuffer.write(1, unsafeBuffer, 0, length);
@@ -99,16 +98,7 @@ public class CliAgent implements Agent
         messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
 
         final String message = messageDecoder.message();
-        final long netTimestamp = messageDecoder.netTimestamp();
-        final long inputTimestamp = messageDecoder.inputTimestamp();
-        final long serverTimestamp = messageDecoder.serverTimestamp();
-
-        // Compute latency
-        final double inputLatencyMs = (System.nanoTime() - inputTimestamp) / 1_000_000.0;
-        final double netLatencyMs = (System.nanoTime() - netTimestamp) / 1_000_000.0;
-        final double serverLatencyMs = (System.nanoTime() - serverTimestamp) / 1_000_000.0;
-
-        System.out.println("[Cli Agent] Message received: " + message + " - Input latency: " + inputLatencyMs + " ms - Net latency: " + netLatencyMs + " ms - Server latency: " + serverLatencyMs + " ms");
+        System.out.println("[Cli Agent] Message received: " + message);
     }
 
     @Override

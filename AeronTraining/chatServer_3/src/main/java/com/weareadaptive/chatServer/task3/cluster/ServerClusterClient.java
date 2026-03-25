@@ -2,14 +2,15 @@ package com.weareadaptive.chatServer.task3.cluster;
 
 import io.aeron.cluster.client.AeronCluster;
 import io.aeron.cluster.client.EgressListener;
+import io.aeron.cluster.codecs.AdminRequestType;
+import io.aeron.cluster.codecs.AdminResponseCode;
+import io.aeron.cluster.codecs.EventCode;
 import io.aeron.logbuffer.Header;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
-import task3.src.main.resources.MessageHeaderEncoder;
-import task3.src.main.resources.TextMessageEncoder;
 
 public class ServerClusterClient implements EgressListener
 {
@@ -32,6 +33,10 @@ public class ServerClusterClient implements EgressListener
         while (!Thread.currentThread().isInterrupted())
         {
             final int workCount = innerRingBuffer.read(this::readAndOfferMessage);
+            if (workCount == 0)
+            {
+                clusterClient.sendKeepAlive();
+            }
             idleStrategy.idle(workCount);
         }
     }
@@ -56,5 +61,46 @@ public class ServerClusterClient implements EgressListener
         {
             System.err.println("[Server Cluster Client] Publishing failed - Response Code: " + offer);
         }
+    }
+
+    @Override
+    public void onSessionEvent(
+            final long correlationId,
+            final long clusterSessionId,
+            final long leadershipTermId,
+            final int leaderMemberId,
+            final EventCode code,
+            final String detail)
+    {
+        System.out.println("[Server Cluster Client] On Session Event");
+    }
+
+    @Override
+    public void onNewLeader(
+            final long clusterSessionId,
+            final long leadershipTermId,
+            final int leaderMemberId,
+            final String ingressEndpoints)
+    {
+        System.out.println("[Server Cluster Client] On New Leader");
+    }
+
+    @Override
+    public void onAdminResponse(
+            final long clusterSessionId,
+            final long correlationId,
+            final AdminRequestType requestType,
+            final AdminResponseCode responseCode,
+            final String message,
+            final DirectBuffer payload,
+            final int payloadOffset,
+            final int payloadLength)
+    {
+        System.out.println("[Server Cluster Client] On Admin Response");
+    }
+
+    public void setAeronCluster(final AeronCluster clusterClient)
+    {
+        this.clusterClient = clusterClient;
     }
 }
