@@ -15,7 +15,6 @@ import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
 import org.agrona.concurrent.ringbuffer.RingBufferDescriptor;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 import static com.weareadaptive.chatServer.task3.Globals.*;
 
@@ -65,20 +64,5 @@ public class ChatClient
             clusterClient.setAeronCluster(aeronCluster);
             clusterClient.run();
         }
-    }
-
-    public static String ingressEndpoints(final List<String> hostnames)
-    {
-        final StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < hostnames.size(); i++)
-        {
-            sb.append(i).append('=');
-            sb.append(hostnames.get(i)).append(':').append(PORT_BASE + (PORT_OFFSET * i));
-            sb.append(',');
-        }
-
-        sb.setLength(sb.length() - 1);
-
-        return sb.toString();
     }
 }

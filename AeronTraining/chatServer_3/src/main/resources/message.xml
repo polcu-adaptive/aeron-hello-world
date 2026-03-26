@@ -15,6 +15,7 @@
         </composite>
 
         <type name="Long" primitiveType="int64"/>
+        <type name="Int" primitiveType="int32"/>
 
         <composite name="varStringEncoding">
             <type name="length"  primitiveType="uint32" maxValue="1073741824"/>
@@ -24,7 +25,8 @@
 
     <sbe:message name="TextMessage" id="1">
         <field name="correlationId" id="1" type="Long"/>
-        <data  name="message"       id="2" type="varStringEncoding"/>
+        <field name="timestamp"     id="2" type="Long"/>
+        <data  name="message"       id="3" type="varStringEncoding"/>
     </sbe:message>
     <sbe:message name="MessageSnapshot" id="2">
         <field name="timestamp" id="1" type="Long"/>

@@ -98,7 +98,8 @@ public class CliAgent implements Agent
         messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
 
         final String message = messageDecoder.message();
-        System.out.println("[Cli Agent] Message received: " + message);
+        final long timestamp = messageDecoder.timestamp();
+        System.out.println("[Cli Agent] Message received: " + message + " - timestamp: " + timestamp);
     }
 
     @Override

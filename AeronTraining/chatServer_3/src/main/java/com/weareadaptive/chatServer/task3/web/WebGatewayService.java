@@ -28,6 +28,7 @@ public class WebGatewayService
 
     private final List<WebSocket> webSocketList = new ArrayList<>();
     private final List<String> messagesLog = new ArrayList<>();
+    private final JsonObject jsonObject = new JsonObject();
 
     public WebGatewayService(final OneToOneRingBuffer innerRingBuffer, final OneToOneRingBuffer outerRingBuffer)
     {
@@ -84,16 +85,23 @@ public class WebGatewayService
         messageDecoder.wrap(buffer, totalOffset, actingBlockLength, actingVersion);
 
         final String message = messageDecoder.message();
-        messagesLog.add(message);
+        final long timestamp = messageDecoder.timestamp();
+
+        final String jsonString = jsonObject
+                .put("Message", message)
+                .put("Timestamp", timestamp)
+                .encode();
+
+        messagesLog.add(jsonString);
 
         webSocketList.forEach(webSocket ->
         {
             if (!webSocket.isClosed())
             {
-                webSocket.writeTextMessage(message);
+                webSocket.writeTextMessage(jsonString);
             }
         });
 
-        System.out.println("[Web Gateway Service] Received message from server: " + message + " - Sending it to connected websockets" + System.lineSeparator());
+        System.out.println("[Web Gateway Service] Received message from server: " + jsonString + " - Sending it to connected websockets" + System.lineSeparator());
     }
 }

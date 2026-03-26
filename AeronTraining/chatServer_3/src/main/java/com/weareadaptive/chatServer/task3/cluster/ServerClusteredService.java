@@ -3,6 +3,7 @@ package com.weareadaptive.chatServer.task3.cluster;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.cluster.ClusterClientSession;
+import io.aeron.cluster.ClusterTool;
 import io.aeron.cluster.codecs.CloseReason;
 import io.aeron.cluster.service.ClientSession;
 import io.aeron.cluster.service.Cluster;
@@ -94,6 +95,7 @@ public class ServerClusteredService implements ClusteredService
         textMessageEncoder.wrapAndApplyHeader(egressBuffer, 0, headerEncoder);
         textMessageEncoder.correlationId(correlationId);
         textMessageEncoder.message(textMessage.message());
+        textMessageEncoder.timestamp(timestamp);
 
         final int egressLength = textMessageEncoder.encodedLength() + headerEncoder.encodedLength();
         System.out.println("[Server Clustered Service] Egress length: " + egressLength);

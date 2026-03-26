@@ -78,6 +78,7 @@ public class ServerClusterClient implements EgressListener
             final String detail)
     {
         System.out.println("[Server Cluster Client] On Session Event");
+        System.out.println("[Server Cluster Client] Detail: " + detail + System.lineSeparator());
     }
 
     @Override
@@ -91,7 +92,7 @@ public class ServerClusterClient implements EgressListener
         System.out.println("[Server Cluster Client] Cluster session id: " + clusterSessionId);
         System.out.println("[Server Cluster Client] Leadership term id: " + leadershipTermId);
         System.out.println("[Server Cluster Client] Leader member id: " + leaderMemberId);
-        System.out.println("[Server Cluster Client] Ingress endpoints: " + ingressEndpoints);
+        System.out.println("[Server Cluster Client] Ingress endpoints: " + ingressEndpoints + System.lineSeparator());
     }
 
     @Override
@@ -106,6 +107,7 @@ public class ServerClusterClient implements EgressListener
             final int payloadLength)
     {
         System.out.println("[Server Cluster Client] On Admin Response");
+        System.out.println("[Server Cluster Client] Message: " + message + System.lineSeparator());
     }
 
     public void setAeronCluster(final AeronCluster clusterClient)
