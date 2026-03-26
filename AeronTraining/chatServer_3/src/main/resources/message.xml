@@ -32,4 +32,7 @@
         <field name="timestamp" id="1" type="Long"/>
         <data  name="message"   id="2" type="varStringEncoding"/>
     </sbe:message>
+    <sbe:message name="TakeSnapshot" id="3">
+        <field name="correlationId" id="1" type="Long"/>
+    </sbe:message>
 </sbe:messageSchema>

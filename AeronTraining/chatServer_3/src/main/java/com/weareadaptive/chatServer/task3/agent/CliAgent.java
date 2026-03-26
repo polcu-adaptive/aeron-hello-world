@@ -4,10 +4,7 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
-import task3.src.main.resources.MessageHeaderDecoder;
-import task3.src.main.resources.MessageHeaderEncoder;
-import task3.src.main.resources.TextMessageDecoder;
-import task3.src.main.resources.TextMessageEncoder;
+import task3.src.main.resources.*;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
@@ -24,6 +21,7 @@ public class CliAgent implements Agent
     private final TextMessageEncoder messageEncoder = new TextMessageEncoder();
     private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     private final TextMessageDecoder messageDecoder = new TextMessageDecoder();
+    private final TakeSnapshotCommandEncoder snapshotCommand = new TakeSnapshotCommandEncoder();
 
     private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(ByteBuffer.allocateDirect(4096));
     private AgentState agentState = AgentState.INITIAL;
@@ -79,10 +77,22 @@ public class CliAgent implements Agent
         }
 
         final String message = inputQueue.poll();
-        messageEncoder.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
-        messageEncoder.message(message);
+        int length;
+        switch (message)
+        {
+            case "snapshot" ->
+            {
+                snapshotCommand.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
+                length = headerEncoder.encodedLength() + snapshotCommand.encodedLength();
+            }
+            default ->
+            {
+                messageEncoder.wrapAndApplyHeader(unsafeBuffer, 0, headerEncoder);
+                messageEncoder.message(message);
+                length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
+            }
+        }
 
-        final int length = headerEncoder.encodedLength() + messageEncoder.encodedLength();
         innerRingBuffer.write(1, unsafeBuffer, 0, length);
     }
 

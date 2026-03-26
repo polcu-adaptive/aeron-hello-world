@@ -11,6 +11,8 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.ringbuffer.OneToOneRingBuffer;
+import task3.src.main.resources.MessageHeaderDecoder;
+import task3.src.main.resources.TakeSnapshotCommandDecoder;
 
 public class ServerClusterClient implements EgressListener
 {
@@ -18,6 +20,7 @@ public class ServerClusterClient implements EgressListener
 
     private final OneToOneRingBuffer innerRingBuffer;
     private final OneToOneRingBuffer outerRingBuffer;
+    private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     private final IdleStrategy idleStrategy = new BackoffIdleStrategy();
 
     private boolean running = true;
@@ -61,10 +64,18 @@ public class ServerClusterClient implements EgressListener
     {
         System.out.println("[Server Cluster Client] Publishing message");
 
-        final long offer = clusterClient.offer(buffer, index, length);
-        if (offer < 0)
+        headerDecoder.wrap(buffer, index);
+        switch (headerDecoder.templateId())
         {
-            System.err.println("[Server Cluster Client] Publishing failed - Response Code: " + offer);
+            case TakeSnapshotCommandDecoder.TEMPLATE_ID -> clusterClient.sendAdminRequestToTakeASnapshot(0);
+            default ->
+            {
+                final long offer = clusterClient.offer(buffer, index, length);
+                if (offer < 0)
+                {
+                    System.err.println("[Server Cluster Client] Publishing failed - Response Code: " + offer);
+                }
+            }
         }
     }
 

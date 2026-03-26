@@ -15,12 +15,12 @@ import org.agrona.ExpandableArrayBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.SleepingMillisIdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
 import task3.src.main.resources.*;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class ServerClusteredService implements ClusteredService
 {
@@ -39,6 +39,14 @@ public class ServerClusteredService implements ClusteredService
     private final MessageSnapshotDecoder messageSnapshotDecoder = new MessageSnapshotDecoder();
     private final FragmentHandler snapshotLoader;
 
+    private final Queue<ReplayingSession> replayingSessions = new ArrayDeque<>();
+    private final IdleStrategy replayIdleStrategy = new SleepingMillisIdleStrategy(2000);
+    private static final int REPLAY_PER_TICK = 50;
+    private final MutableDirectBuffer replayBuffer = new ExpandableArrayBuffer(256);
+
+    private Cluster cluster;
+    private final int replayCorrelationId = 1;
+
     public ServerClusteredService()
     {
         this.snapshotLoader = (final DirectBuffer buffer, final int offset, final int length, final Header header) ->
@@ -53,6 +61,8 @@ public class ServerClusteredService implements ClusteredService
     public void onStart(final Cluster cluster, final Image snapshotImage)
     {
         System.out.println("[Server Clustered Service] On start");
+
+        this.cluster = cluster;
         if (snapshotImage != null)
         {
             System.out.println("[Server Clustered Service] Snapshot found on start. Loading...");
@@ -65,6 +75,9 @@ public class ServerClusteredService implements ClusteredService
     {
         System.out.println("[Server Clustered Service] Client session opened");
         clientSessions.add(session);
+
+        replayingSessions.add(new ReplayingSession(session));
+        cluster.scheduleTimer(replayCorrelationId, timestamp + 1);
     }
 
     @Override
@@ -115,6 +128,50 @@ public class ServerClusteredService implements ClusteredService
     public void onTimerEvent(final long correlationId, final long timestamp)
     {
         System.out.println("[Server Clustered Service] Node timer event firing ");
+
+        if (correlationId != replayCorrelationId)
+        {
+            System.err.println("[Server Clustered Service] Unknown timer correlationId");
+            return;
+        }
+
+        replayingSessions.forEach(this::sendReplayStream);
+        if (!replayingSessions.isEmpty())
+        {
+            cluster.scheduleTimer(replayCorrelationId, timestamp + 1);
+        }
+    }
+
+    private void sendReplayStream(final ReplayingSession replayingSession)
+    {
+        final int currentIndex = replayingSession.currentIndex();
+        System.out.println("Replaying from index: " + currentIndex);
+
+        for (int i = currentIndex; i < currentIndex + REPLAY_PER_TICK; ++i)
+        {
+            if (i >= messages.size())
+            {
+                replayingSessions.remove();
+                return;
+            }
+
+            final TextMessage message = messages.get(i);
+            textMessageEncoder.wrapAndApplyHeader(replayBuffer, 0, headerEncoder);
+            textMessageEncoder.message(message.message());
+            textMessageEncoder.timestamp(message.timestamp());
+
+            final int length = headerEncoder.encodedLength() + textMessageEncoder.encodedLength();
+            if (replayingSession.clientSession().offer(replayBuffer, 0, length) < 0)
+            {
+                idleStrategy.idle();
+            }
+        }
+
+        replayingSession.currentIndex(currentIndex + REPLAY_PER_TICK);
+        if (replayingSession.currentIndex() >= messages.size())
+        {
+            replayingSessions.remove();
+        }
     }
 
     @Override
